@@ -251,6 +251,9 @@ int main(int argc, char** argv) {
   dc.cout() << "#vertices: " << graph.num_vertices()
             << " #edges:" << graph.num_edges() << std::endl;
 
+  graphlab::mpi_tools::finalize();
+  return EXIT_SUCCESS;
+
   // Initialize the vertex data
   graph.transform_vertices(init_vertex);
 

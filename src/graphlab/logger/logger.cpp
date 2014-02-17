@@ -163,7 +163,8 @@ void file_logger::_log(int lineloglevel,const char* file,const char* function,
         textcolor(stderr, BRIGHT, GREEN);
       }
 #endif
-      std::cerr << str;;
+      if (lineloglevel == LOG_EMPH) // to test partitioning ...
+      std::cerr << str;
 #ifdef COLOROUTPUT
       reset_color(stderr);
 #endif
@@ -226,6 +227,7 @@ void file_logger::_lograw(int lineloglevel, const char* buf, int len) {
       textcolor(stderr, BRIGHT, GREEN);
     }
 #endif
+    if (lineloglevel == LOG_EMPH) // to test partitioning ...
     std::cerr.write(buf,len);
 #ifdef COLOROUTPUT
 
