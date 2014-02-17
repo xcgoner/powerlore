@@ -1,0 +1,27 @@
+# use glob syntax
+syntax: glob
+
+*~
+debug/*
+release/*
+profile/*
+dist/graphlabapi*
+doc/doxygen/*
+doc/doxygen_internal/*
+deps/*
+configure.deps
+config.log
+new_news.txt
+cxxtest/cxxtest/*.pyc
+
+extapis/java_jni/dist
+extapis/java_jni/bin
+
+demoapps/coloring/matlab_tools/*.tsv
+demoapps/shortest_path/matlab_tools/*.tsv
+demoapps/pagerank/matlab_tools/*.tsv
+
+tags
+*swp
+\.mchg\.mchg
+.ycm_extra_conf*
