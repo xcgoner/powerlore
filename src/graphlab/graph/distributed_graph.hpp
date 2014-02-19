@@ -91,6 +91,9 @@
 #include <graphlab/graph/ingress/distributed_hybrid_ingress.hpp>
 #include <graphlab/graph/ingress/distributed_hybrid_ginger_ingress.hpp>
 
+// libra
+#include <graphlab/graph/ingress/distributed_libra_ingress.hpp>
+
 #include <graphlab/graph/graph_hash.hpp>
 
 #include <graphlab/util/hopscotch_map.hpp>
@@ -415,6 +418,7 @@ namespace graphlab {
     friend class distributed_bipartite_aweto_ingress<VertexData, EdgeData>;
     friend class distributed_hybrid_ingress<VertexData, EdgeData>;
     friend class distributed_hybrid_ginger_ingress<VertexData, EdgeData>;
+    friend class distributed_libra_ingress<VertexData, EdgeData>;
 
     typedef graphlab::vertex_id_type vertex_id_type;
     typedef graphlab::lvid_type lvid_type;
@@ -3295,6 +3299,9 @@ namespace graphlab {
         ASSERT_GT(nedges, 0); ASSERT_GT(nverts, 0);
         ingress_ptr = new distributed_hybrid_ginger_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold, nedges, nverts, interval);
         set_cuts_type(HYBRID_GINGER_CUTS);
+      } else if  (method == "libra") {
+        if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use libra ingress" << std::endl;
+        ingress_ptr = new distributed_libra_ingress<VertexData, EdgeData>(rpc.dc(), *this);
       } else {
         // use default ingress method if none is specified
         std::string ingress_auto = "";
