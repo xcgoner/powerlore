@@ -1,0 +1,40 @@
+Pointers
+------------
+0x57e5a1
+0x5c3d22
+0x5c41e7
+0x61bbc4
+0x5c2cf3
+0x58054c
+0x580f7d
+0x5808e2
+0x7f7a81fd49ca
+0x7f7a7f3b81cd
+Raw
+------------
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(_Z18__print_back_tracev+0xa1) [0x57e5a1]
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(_ZN8graphlab7dc_impl11dc_tcp_comm15send_till_blockERNS1_11socket_infoE+0x242) [0x5c3d22]
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(_ZN8graphlab7dc_impl13on_send_eventEisPv+0x357) [0x5c41e7]
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(gl_event_base_loop+0x3d4) [0x61bbc4]
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(_ZN8graphlab7dc_impl11dc_tcp_comm9send_loopEP10event_base+0x23) [0x5c2cf3]
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(_ZN8graphlab12thread_group6invokeEN5boost8functionIFvvEEEPS0_+0x3c) [0x58054c]
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(_ZN5boost6detail8function26void_function_obj_invoker0INS_3_bi6bind_tIvPFvNS_8functionIFvvEEEPN8graphlab12thread_groupEENS3_5list2INS3_5valueIS7_EENSE_ISA_EEEEEEvE6invokeERNS1_15function_bufferE+0x5d) [0x580f7d]
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(_ZN8graphlab6thread6invokeEPv+0x32) [0x5808e2]
+/lib/libpthread.so.0(+0x69ca) [0x7f7a81fd49ca]
+/lib/libc.so.6(clone+0x6d) [0x7f7a7f3b81cd]
+
+Demangled
+------------
+__print_back_trace()
+graphlab::dc_impl::dc_tcp_comm::send_till_block(graphlab::dc_impl::dc_tcp_comm::socket_info&)
+graphlab::dc_impl::on_send_event(int, short, void*)
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(gl_event_base_loop+0x3d4)
+graphlab::dc_impl::dc_tcp_comm::send_loop(event_base*)
+graphlab::thread_group::invoke(boost::function<void ()>, graphlab::thread_group*)
+/home/xcgoner/mnt_src/powerlore/release/toolkits/graph_analytics/pagerank(_ZN5boost6detail8function26void_function_obj_invoker0
+graphlab::thread::invoke(void*)
+/lib/libpthread.so.0(+0x69ca)
+/lib/libc.so.6(clone+0x6d)
+-------------------------------------------------------
+
+
