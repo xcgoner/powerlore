@@ -300,7 +300,6 @@ namespace graphlab {
         foreach(const edge_buffer_record& rec, edge_recv_buffer) {
           if(!standalone && rec.hash_flag != 0) {
               const bool is_source_lower = (degree_set[rec.source] < degree_set[rec.target]);
-//              if( (is_source_lower && rec.hash_flag == 2) || (!is_source_lower && rec.hash_flag == 1) )
               // if the edge does not belong to this proc, then skip
               if(((size_t)is_source_lower + 1) == rec.hash_flag)
                 continue;

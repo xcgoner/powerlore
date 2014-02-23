@@ -94,6 +94,9 @@
 // libra
 #include <graphlab/graph/ingress/distributed_libra_ingress.hpp>
 
+// constell
+#include <graphlab/graph/ingress/distributed_constell_ingress.hpp>
+
 #include <graphlab/graph/graph_hash.hpp>
 
 #include <graphlab/util/hopscotch_map.hpp>
@@ -419,6 +422,7 @@ namespace graphlab {
     friend class distributed_hybrid_ingress<VertexData, EdgeData>;
     friend class distributed_hybrid_ginger_ingress<VertexData, EdgeData>;
     friend class distributed_libra_ingress<VertexData, EdgeData>;
+    friend class distributed_constell_ingress<VertexData, EdgeData>;
 
     typedef graphlab::vertex_id_type vertex_id_type;
     typedef graphlab::lvid_type lvid_type;
@@ -2487,6 +2491,9 @@ namespace graphlab {
       } else if (format == "adj") {
         line_parser = builtin_parsers::adj_parser<distributed_graph>;
         load(path, line_parser);
+      } else if (format == "adjc") {
+        line_parser = builtin_parsers::adjc_parser<distributed_graph>;
+        load(path, line_parser);
       } else if (format == "tsv") {
         line_parser = builtin_parsers::tsv_parser<distributed_graph>;
         load(path, line_parser);
@@ -3302,6 +3309,9 @@ namespace graphlab {
       } else if  (method == "libra") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use libra ingress" << std::endl;
         ingress_ptr = new distributed_libra_ingress<VertexData, EdgeData>(rpc.dc(), *this);
+      } else if  (method == "constell") {
+        if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use constell ingress" << std::endl;
+        ingress_ptr = new distributed_constell_ingress<VertexData, EdgeData>(rpc.dc(), *this);
       } else {
         // use default ingress method if none is specified
         std::string ingress_auto = "";

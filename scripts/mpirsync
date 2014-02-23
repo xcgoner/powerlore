@@ -1,6 +1,7 @@
 #!/bin/bash
 
-src_path=$(hostname):$PWD
+src_path=`ifconfig | grep -A 1 'eth0' | tail -n 1 | awk -F':' '{print $2}' | awk -F' ' '{print $1}'`:$PWD
+echo $src_path
 dest_path=$PWD
 mpiexec.openmpi -hostfile ~/machines -nolocal -pernode mkdir -p $dest_path
 mpiexec.openmpi -hostfile ~/machines -nolocal -pernode rsync -e 'ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/id_rsa' -avz --exclude '*.make' --exclude '*.cmake' --exclude '*.internal' --exclude '*.includecache' --exclude '*.o' $src_path/ $dest_path
