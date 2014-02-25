@@ -25,8 +25,8 @@
 
 #include <boost/functional/hash.hpp>
 #include <boost/dynamic_bitset.hpp>
+#include <boost/unordered_set.hpp>
 
-#include <graphlab/rpc/buffered_exchange.hpp>
 #include <graphlab/graph/graph_basic_types.hpp>
 #include <graphlab/graph/ingress/distributed_ingress_base.hpp>
 #include <graphlab/graph/distributed_graph.hpp>
@@ -35,6 +35,7 @@
 #include <graphlab/rpc/distributed_event_log.hpp>
 #include <graphlab/parallel/pthread_tools.hpp>
 #include <graphlab/logger/logger.hpp>
+#include <graphlab/util/dense_bitset.hpp>
 #include <vector>
 
 #include <graphlab/macros_def.hpp>
@@ -70,6 +71,11 @@ namespace graphlab {
 
     bool standalone;
 
+    /// threshold to divide high-degree and low-degree vertices
+    size_t threshold;
+    /// interval to synchronize the mht
+    size_t interval;
+
 //    typedef typename base_type::edge_buffer_record edge_buffer_record;
     struct edge_buffer_record {
       vertex_id_type source, target;
@@ -91,6 +97,40 @@ namespace graphlab {
     typedef typename buffered_exchange<vertex_buffer_record>::buffer_type
         vertex_buffer_type;
 
+    typedef fixed_dense_bitset<RPC_MAX_N_PROCS> bin_counts_type;
+
+    /** Type of the mirror hash table:
+     * a map from vertex id to a bitset of length num_procs. */
+    typedef typename boost::unordered_map<vertex_id_type, bin_counts_type>
+    mht_type;
+
+    /** distributed hash table stored on local machine */
+    boost::unordered_map<vertex_id_type, bin_counts_type > mht;
+
+    struct mirror_buffer_record {
+      vertex_id_type vid;
+      procid_t pid;
+      mirror_buffer_record(const vertex_id_type& vid = vertex_id_type(-1), const procid_t& pid = procid_t(-1))
+        :vid(vid), pid(pid) { }
+      void load(iarchive& arc) { arc >> vid >> pid; }
+      void save(oarchive& arc) const { arc << vid << pid; }
+    };
+    buffered_exchange<mirror_buffer_record> mirror_exchange;
+    typedef typename buffered_exchange<mirror_buffer_record>::buffer_type
+      mirror_buffer_type;
+
+    struct proc_edges_incre_record {
+      procid_t pid;
+      size_t increment;
+      proc_edges_incre_record(const procid_t& pid = procid_t(-1), const size_t& increment = 0)
+        :pid(pid), increment(increment) { }
+      void load(iarchive& arc) { arc >> pid >> increment; }
+      void save(oarchive& arc) const { arc << pid << increment; }
+    };
+    buffered_exchange<proc_edges_incre_record> proc_edges_incre_exchange;
+    typedef typename buffered_exchange<proc_edges_incre_record>::buffer_type
+      proc_edges_incre_buffer_type;
+
     /* ingress exchange */
     buffered_exchange<edge_buffer_record> edge_exchange;
     buffered_exchange<vertex_buffer_record> vertex_exchange;
@@ -107,20 +147,16 @@ namespace graphlab {
         vertex_degree_buffer_type;
     buffered_exchange<vertex_degree_buffer_record> vertex_degree_exchange;
 
+
     typedef typename base_type::vertex_negotiator_record vertex_negotiator_record;
    
   public:
-    distributed_constell_ingress(distributed_control& dc, graph_type& graph) :
+    distributed_constell_ingress(distributed_control& dc, graph_type& graph, size_t threshold = 50, size_t interval = 10) :
     base_type(dc, graph), rpc(dc, this),
-    graph(graph),
-#ifdef _OPENMP
-      vertex_exchange(dc, omp_get_max_threads()),
-      edge_exchange(dc, omp_get_max_threads()),
-      vertex_degree_exchange(dc, omp_get_max_threads())
-#else
-      vertex_exchange(dc), edge_exchange(dc),
-      vertex_degree_exchange(dc)
-#endif
+    graph(graph), threshold(threshold), interval(interval),
+    vertex_exchange(dc), edge_exchange(dc),
+    vertex_degree_exchange(dc),
+    mirror_exchange(dc), proc_edges_incre_exchange(dc)
     {
       /* fast pass for standalone case. */
       standalone = rpc.numprocs() == 1;
@@ -154,9 +190,61 @@ namespace graphlab {
       }
     } // end of add edge
 
+    /** Greedy assign (source, target) to a machine using:
+     *  bitset<MAX_MACHINE> src_degree : the degree presence of source over machines
+     *  bitset<MAX_MACHINE> dst_degree : the degree presence of target over machines
+     *  vector<size_t>      proc_num_edges : the edge counts over machines
+     * */
+    procid_t edge_to_proc_degree (const vertex_id_type source,
+        const vertex_id_type target,
+        const bin_counts_type& src_mirror,
+        const bin_counts_type& dst_mirror,
+        const std::vector<size_t>& proc_num_edges,
+        hopscotch_map<vertex_id_type, size_t>& degree_set) {
+      size_t numprocs = proc_num_edges.size();
+
+      // Compute the score of each proc.
+      procid_t best_proc = -1;
+      double maxscore = 0.0;
+      double epsilon = 1.0;
+      std::vector<double> proc_score(numprocs);
+      size_t minedges = *std::min_element(proc_num_edges.begin(), proc_num_edges.end());
+      size_t maxedges = *std::max_element(proc_num_edges.begin(), proc_num_edges.end());
+
+      size_t source_degree, target_degree;
+      source_degree = degree_set[source];
+      target_degree = degree_set[target];
+
+      for (size_t i = 0; i < numprocs; ++i) {
+        size_t sd = src_mirror.get(i);
+        size_t td = dst_mirror.get(i);
+        double bal = (maxedges - proc_num_edges[i])/(epsilon + maxedges - minedges);
+        bool sd1 = (sd > 0);
+        bool td1 = (td > 0);
+        bool sd2 = (sd1 && target_degree >= source_degree);
+        bool td2 = (td1 && target_degree <= source_degree);
+        bool d0 = (sd2 && td2);
+        proc_score[i] = bal + sd1 + sd2 + td1 + td2 - d0;
+      }
+      maxscore = *std::max_element(proc_score.begin(), proc_score.end());
+
+      std::vector<procid_t> top_procs;
+      for (size_t i = 0; i < numprocs; ++i)
+        if (std::fabs(proc_score[i] - maxscore) < 1e-5)
+          top_procs.push_back(i);
+
+      // Hash the edge to one of the best procs.
+      typedef std::pair<vertex_id_type, vertex_id_type> edge_pair_type;
+      const edge_pair_type edge_pair(std::min(source, target),
+          std::max(source, target));
+      best_proc = top_procs[graph_hash::hash_edge(edge_pair) % top_procs.size()];
+
+      return best_proc;
+    };
+
     void finalize() {
 
-//      procid_t l_procid = rpc.procid();
+      procid_t l_procid = rpc.procid();
 
       rpc.full_barrier();
 
@@ -195,7 +283,7 @@ namespace graphlab {
 
       /**
        * \internal
-       * The begining id assinged to the first new vertex.
+       * The beginning id assigned to the first new vertex.
        */
       const lvid_type lvid_start  = graph.vid2lvid.size();
 
@@ -229,12 +317,13 @@ namespace graphlab {
 
       /**************************************************************************/
       /*                                                                        */
-      /*                       Prepare hybrid ingress                           */
+      /*                       Prepare constell ingress                           */
       /*                                                                        */
       /**************************************************************************/
-      hopscotch_map<vertex_id_type, size_t> degree_set;
-      std::vector<edge_buffer_record> edge_recv_buffer;
+
       {
+        std::vector<edge_buffer_record> edge_recv_buffer;
+        hopscotch_map<vertex_id_type, size_t> degree_set;
         if (!standalone) {
             procid_t proc = -1;
             edge_recv_buffer.reserve(edge_exchange.size());
@@ -242,28 +331,32 @@ namespace graphlab {
             std::vector< boost::dynamic_bitset<> > degree_exchange_set(rpc.numprocs());
             while(edge_exchange.recv(proc, edge_buffer)) {
               foreach(const edge_buffer_record& rec, edge_buffer) {
-                edge_recv_buffer.push_back(rec);
+                if(rec.hash_flag == 0 || ((rec.source >= rec.target) + 1) == rec.hash_flag)
+                    edge_recv_buffer.push_back(rec);
                 // count the degree of each vertex
                 degree_set[rec.target]++;
                 degree_set[rec.source]++;
-                if(rec.hash_flag == 1) {
-                    // this proc is the source vertex hashed to
+
+                if(rec.hash_flag == 1 && rec.target < rec.source) {
+                    // this proc is the source vertex hashed to and target_id < source_id
                     const procid_t owning_proc = graph_hash::hash_vertex(rec.target) % rpc.numprocs();
                     if(degree_exchange_set[owning_proc].size() < (rec.source + 1))
                       degree_exchange_set[owning_proc].resize(rec.source + 1);
                     degree_exchange_set[owning_proc][rec.source] = true;
                 }
-                else if(rec.hash_flag == 2) {
+                else if(rec.hash_flag == 2 && rec.source < rec.target) {
                     // this proc is the target vertex hashed to
                     const procid_t owning_proc = graph_hash::hash_vertex(rec.source) % rpc.numprocs();
                     if(degree_exchange_set[owning_proc].size() < (rec.target + 1))
                       degree_exchange_set[owning_proc].resize(rec.target + 1);
                     degree_exchange_set[owning_proc][rec.target] = true;
                 }
+
               }
             }
             edge_exchange.clear();
 
+            // send degree
             for(size_t idx = 0; idx < degree_exchange_set.size(); idx++) {
                 for(size_t vid = degree_exchange_set[idx].find_first();
                     vid != degree_exchange_set[idx].npos;
@@ -274,18 +367,170 @@ namespace graphlab {
             }
             vertex_degree_exchange.flush();
 
-            rpc.full_barrier();
-
             vertex_degree_buffer_type vertex_degree_buffer;
+            proc = -1;
             while(vertex_degree_exchange.recv(proc, vertex_degree_buffer)) {
                 foreach(const vertex_degree_buffer_record& rec, vertex_degree_buffer) {
                   degree_set[rec.vid] = rec.degree;
                 }
             }
             vertex_degree_exchange.clear();
+            // degree_set is ready
+
+            // separate the low edges and high edges ...
+            std::vector<edge_buffer_record> low_edge_buffer;
+            std::vector<edge_buffer_record> high_edge_buffer;
+            foreach(const edge_buffer_record& rec, edge_recv_buffer) {
+              if(degree_set[rec.source] < threshold && degree_set[rec.target] < threshold)
+                low_edge_buffer.push_back(rec);
+              else
+                high_edge_buffer.push_back(rec);
+            }
+            std::vector<edge_buffer_record>().swap(edge_recv_buffer);
+            // release the memory ...
+
+//            rpc.full_barrier();
+
+            // initialize
+            std::vector<size_t> proc_num_edges(rpc.numprocs());
+            foreach(size_t& num_edges, proc_num_edges) {
+              num_edges = 0;
+            }
+            std::vector<size_t> proc_incre_edges(rpc.numprocs());
+            foreach(size_t& num_edges, proc_incre_edges) {
+              num_edges = 0;
+            }
+
+            // assign the low edges
+            size_t edge_count = 0;
+            foreach(const edge_buffer_record& rec, low_edge_buffer) {
+              if(mht.count(rec.source) == 0)
+                mht[rec.source].clear();
+              if(mht.count(rec.target) == 0)
+                mht[rec.target].clear();
+              const procid_t best_pid = edge_to_proc_degree(rec.source, rec.target,
+                                          mht[rec.source], mht[rec.target],
+                                          proc_num_edges, degree_set);
+
+              edge_exchange.send(best_pid, rec);
+
+              if(mht[rec.source].get(best_pid) == false) {
+                  const mirror_buffer_record mirror_record(rec.source, best_pid);
+                  for(procid_t pid = 0; pid < rpc.numprocs(); pid++) {
+                    if(pid == l_procid)
+                      mht[rec.source].set_bit_unsync(best_pid);
+                    else {
+                      mirror_exchange.send(pid, mirror_record);
+//                      mirror_exchange.partial_flush(0);
+                    }
+                  }
+              }
+
+              if(mht[rec.target].get(best_pid) == false) {
+                  const mirror_buffer_record mirror_record(rec.target, best_pid);
+                  for(procid_t pid = 0; pid < rpc.numprocs(); pid++) {
+                    if(pid == l_procid)
+                      mht[rec.target].set_bit_unsync(best_pid);
+                    else {
+                      mirror_exchange.send(pid, mirror_record);
+//                      mirror_exchange.partial_flush(0);
+                    }
+                  }
+              }
+
+              proc_num_edges[best_pid]++;
+              proc_incre_edges[best_pid]++;
+
+              if(edge_count % interval == 0) {
+                // send the increment of proc_num_edges
+                for (procid_t p = 0; p < rpc.numprocs(); p++) {
+                  const proc_edges_incre_record edges_incre_record(p, proc_incre_edges[p]);
+                  for (procid_t i = 0; i < rpc.numprocs(); i++)
+                    if (i != l_procid)
+                      proc_edges_incre_exchange.send(i, edges_incre_record);
+                  proc_incre_edges[p] = 0;
+                }
+
+                // flush increment and mirrors
+                proc_edges_incre_exchange.partial_flush(0);
+                mirror_exchange.partial_flush(0);
+
+                // update number of edges
+                if(proc_edges_incre_exchange.size() > 0) {
+                    proc_edges_incre_buffer_type proc_edges_incre_buffer;
+                    proc = -1;
+                    while(proc_edges_incre_exchange.recv(proc, proc_edges_incre_buffer)) {
+                        foreach(const proc_edges_incre_record& rec, proc_edges_incre_buffer) {
+                          proc_num_edges[rec.pid] += rec.increment;
+                        }
+                    } // end of while
+                    proc_edges_incre_exchange.clear();
+                } // end of mirror_exchange.size() > 0
+
+                if(mirror_exchange.size() > 0) {
+                    mirror_buffer_type mirror_buffer;
+                    proc = -1;
+                    while(mirror_exchange.recv(proc, mirror_buffer)) {
+                        foreach(const mirror_buffer_record& rec, mirror_buffer) {
+                          if(mht.count(rec.vid) == 0)
+                            mht[rec.vid].clear();
+                          mht[rec.vid].set_bit_unsync(rec.pid);
+                        }
+                    } // end of while
+                    mirror_exchange.clear();
+                } // end of mirror_exchange.size() > 0
+            } // end of internal
+
+              edge_count++;
+            } // end of foreach
+
+            // synchronize the residual ...
+            mirror_exchange.flush();
+            if(mirror_exchange.size() > 0) {
+                mirror_buffer_type mirror_buffer;
+                proc = -1;
+                while(mirror_exchange.recv(proc, mirror_buffer)) {
+                    foreach(const mirror_buffer_record& rec, mirror_buffer) {
+                      if(mht.count(rec.vid) == 0)
+                        mht[rec.vid].clear();
+                      mht[rec.vid].set_bit_unsync(rec.pid);
+                    }
+                } // end of while
+                mirror_exchange.clear();
+            } // end of mirror_exchange.size() > 0
+            proc_edges_incre_exchange.flush();
+            if(proc_edges_incre_exchange.size() > 0) {
+                proc_edges_incre_buffer_type proc_edges_incre_buffer;
+                proc = -1;
+                while(proc_edges_incre_exchange.recv(proc, proc_edges_incre_buffer)) {
+                    foreach(const proc_edges_incre_record& rec, proc_edges_incre_buffer) {
+                      proc_num_edges[rec.pid] += rec.increment;
+                    }
+                } // end of while
+                proc_edges_incre_exchange.clear();
+            } // end of mirror_exchange.size() > 0
+
+            // assign high edges
+            foreach(const edge_buffer_record& rec, high_edge_buffer) {
+              if(mht.count(rec.source) == 0)
+                mht[rec.source].clear();
+              if(mht.count(rec.target) == 0)
+                mht[rec.target].clear();
+              const procid_t best_pid = edge_to_proc_degree(rec.source, rec.target,
+                                          mht[rec.source], mht[rec.target],
+                                          proc_num_edges, degree_set);
+
+              edge_exchange.send(best_pid, rec);
+
+              mht[rec.source].set_bit_unsync(best_pid);
+              mht[rec.target].set_bit_unsync(best_pid);
+              proc_num_edges[best_pid]++;
+            }
+
+            edge_exchange.flush();
 
         } // end of if (!standalone)
-      } // end of Prepare hybrid ingress
+      } // end of Prepare constell ingress
 
       /**************************************************************************/
       /*                                                                        */
@@ -296,44 +541,41 @@ namespace graphlab {
         logstream(LOG_INFO) << "Graph Finalize: constructing local graph" << std::endl;
         const size_t nedges = edge_exchange.size() + 1;
         graph.local_graph.reserve_edge_space(nedges + 1);
-//        size_t edge_count = 0;
-        foreach(const edge_buffer_record& rec, edge_recv_buffer) {
-          if(!standalone && rec.hash_flag != 0) {
-              const bool is_source_lower = (degree_set[rec.source] < degree_set[rec.target]);
-              if(((size_t)is_source_lower + 1) == rec.hash_flag)
-                continue;
-          }
-//          edge_count++;
-          // Get the source_vlid;
-          lvid_type source_lvid(-1);
-          if(graph.vid2lvid.find(rec.source) == graph.vid2lvid.end()) {
-            if (vid2lvid_buffer.find(rec.source) == vid2lvid_buffer.end()) {
-              source_lvid = lvid_start + vid2lvid_buffer.size();
-              vid2lvid_buffer[rec.source] = source_lvid;
+        edge_buffer_type edge_buffer;
+        procid_t proc(-1);
+        while(edge_exchange.recv(proc, edge_buffer)) {
+          foreach(const edge_buffer_record& rec, edge_buffer) {
+            // Get the source_vlid;
+            lvid_type source_lvid(-1);
+            if(graph.vid2lvid.find(rec.source) == graph.vid2lvid.end()) {
+              if (vid2lvid_buffer.find(rec.source) == vid2lvid_buffer.end()) {
+                source_lvid = lvid_start + vid2lvid_buffer.size();
+                vid2lvid_buffer[rec.source] = source_lvid;
+              } else {
+                source_lvid = vid2lvid_buffer[rec.source];
+              }
             } else {
-              source_lvid = vid2lvid_buffer[rec.source];
+              source_lvid = graph.vid2lvid[rec.source];
+              updated_lvids.set_bit_unsync(source_lvid);
             }
-          } else {
-            source_lvid = graph.vid2lvid[rec.source];
-            updated_lvids.set_bit(source_lvid);
-          }
-          // Get the target_lvid;
-          lvid_type target_lvid(-1);
-          if(graph.vid2lvid.find(rec.target) == graph.vid2lvid.end()) {
-            if (vid2lvid_buffer.find(rec.target) == vid2lvid_buffer.end()) {
-              target_lvid = lvid_start + vid2lvid_buffer.size();
-              vid2lvid_buffer[rec.target] = target_lvid;
+            // Get the target_lvid;
+            lvid_type target_lvid(-1);
+            if(graph.vid2lvid.find(rec.target) == graph.vid2lvid.end()) {
+              if (vid2lvid_buffer.find(rec.target) == vid2lvid_buffer.end()) {
+                target_lvid = lvid_start + vid2lvid_buffer.size();
+                vid2lvid_buffer[rec.target] = target_lvid;
+              } else {
+                target_lvid = vid2lvid_buffer[rec.target];
+              }
             } else {
-              target_lvid = vid2lvid_buffer[rec.target];
+              target_lvid = graph.vid2lvid[rec.target];
+              updated_lvids.set_bit_unsync(target_lvid);
             }
-          } else {
-            target_lvid = graph.vid2lvid[rec.target];
-            updated_lvids.set_bit(target_lvid);
-          }
-          graph.local_graph.add_edge(source_lvid, target_lvid, rec.edata);
-          // std::cout << "add edge " << rec.source << "\t" << rec.target << std::endl;
-        } // end of loop over add edges
-//        std::cout << "local #edges: " << edge_count << std::endl;
+            graph.local_graph.add_edge(source_lvid, target_lvid, rec.edata);
+            // std::cout << "add edge " << rec.source << "\t" << rec.target << std::endl;
+          } // end of loop over add edges
+        } // end for loop over buffers
+        edge_exchange.clear();
 
         ASSERT_EQ(graph.vid2lvid.size()  + vid2lvid_buffer.size(), graph.local_graph.num_vertices());
         if(rpc.procid() == 0)  {
@@ -377,7 +619,7 @@ namespace graphlab {
               }
             } else {
               lvid = graph.vid2lvid[rec.vid];
-              updated_lvids.set_bit(lvid);
+              updated_lvids.set_bit_unsync(lvid);
             }
             if (vertex_combine_strategy && lvid < graph.num_local_vertices()) {
               vertex_combine_strategy(graph.l_vertex(lvid).data(), rec.vdata);
@@ -458,15 +700,15 @@ namespace graphlab {
                   flying_vids_lock.lock();
                   mirror_type& mirrors = flying_vids[vid];
                   flying_vids_lock.unlock();
-                  mirrors.set_bit(recvid);
+                  mirrors.set_bit_unsync(recvid);
                 } else {
                   lvid_type lvid = vid2lvid_buffer[vid];
-                  graph.lvid2record[lvid]._mirrors.set_bit(recvid);
+                  graph.lvid2record[lvid]._mirrors.set_bit_unsync(recvid);
                 }
               } else {
                 lvid_type lvid = graph.vid2lvid[vid];
-                graph.lvid2record[lvid]._mirrors.set_bit(recvid);
-                updated_lvids.set_bit(lvid);
+                graph.lvid2record[lvid]._mirrors.set_bit_unsync(recvid);
+                updated_lvids.set_bit_unsync(lvid);
               }
             }
           }
@@ -526,7 +768,7 @@ namespace graphlab {
           changed_vset.make_explicit(graph);
           updated_lvids.resize(graph.num_local_vertices());
           for (lvid_type i = lvid_start; i <  graph.num_local_vertices(); ++i) {
-            updated_lvids.set_bit(i);
+            updated_lvids.set_bit_unsync(i);
           }
           changed_vset.localvset = updated_lvids;
           buffered_exchange<vertex_id_type> vset_exchange(rpc.dc());

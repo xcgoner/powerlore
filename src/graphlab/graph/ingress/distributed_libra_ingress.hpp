@@ -229,7 +229,7 @@ namespace graphlab {
 
       /**************************************************************************/
       /*                                                                        */
-      /*                       Prepare hybrid ingress                           */
+      /*                       Prepare libra ingress                           */
       /*                                                                        */
       /**************************************************************************/
       hopscotch_map<vertex_id_type, size_t> degree_set;
@@ -285,7 +285,7 @@ namespace graphlab {
             vertex_degree_exchange.clear();
 
         } // end of if (!standalone)
-      } // end of Prepare hybrid ingress
+      } // end of Prepare libra ingress
 
       /**************************************************************************/
       /*                                                                        */
@@ -334,6 +334,8 @@ namespace graphlab {
           graph.local_graph.add_edge(source_lvid, target_lvid, rec.edata);
           // std::cout << "add edge " << rec.source << "\t" << rec.target << std::endl;
         } // end of loop over add edges
+        std::vector<edge_buffer_record>().swap(edge_recv_buffer);
+        // release the memory ...
 //        std::cout << "local #edges: " << edge_count << std::endl;
 
         ASSERT_EQ(graph.vid2lvid.size()  + vid2lvid_buffer.size(), graph.local_graph.num_vertices());

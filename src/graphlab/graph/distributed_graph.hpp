@@ -3311,7 +3311,7 @@ namespace graphlab {
         ingress_ptr = new distributed_libra_ingress<VertexData, EdgeData>(rpc.dc(), *this);
       } else if  (method == "constell") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use constell ingress" << std::endl;
-        ingress_ptr = new distributed_constell_ingress<VertexData, EdgeData>(rpc.dc(), *this);
+        ingress_ptr = new distributed_constell_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold, interval);
       } else {
         // use default ingress method if none is specified
         std::string ingress_auto = "";
