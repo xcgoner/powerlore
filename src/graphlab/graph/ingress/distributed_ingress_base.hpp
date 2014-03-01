@@ -291,6 +291,7 @@ namespace graphlab {
             }
             graph.local_graph.add_edge(source_lvid, target_lvid, rec.edata);
             // std::cout << "add edge " << rec.source << "\t" << rec.target << std::endl;
+//            std::cout << rpc.procid() << " add edge " << rec.source << "\t" << rec.target << std::endl;
           } // end of loop over add edges
         } // end for loop over buffers
         edge_exchange.clear();
@@ -373,6 +374,8 @@ namespace graphlab {
         if(rpc.procid() == 0)       
           memory_info::log_usage("Finihsed allocating lvid2record");
       }
+      // debug
+//      std::cout << "assign vertex data: " << rpc.procid() << ": " << graph.local_graph.num_vertices() << ", " << graph.num_local_own_vertices() << std::endl;
 
       /**************************************************************************/
       /*                                                                        */
@@ -432,6 +435,9 @@ namespace graphlab {
           }
         }
 
+        // debug
+//        std::cout << "before master handshake: " << rpc.procid() << ": " << graph.local_graph.num_vertices() << ", " << graph.num_local_own_vertices() << std::endl;
+
         vid_buffer.clear();
         // reallocate spaces for the flying vertices. 
         size_t vsize_old = graph.lvid2record.size();
@@ -446,9 +452,12 @@ namespace graphlab {
           graph.lvid2record[lvid].gvid = gvid;
           graph.lvid2record[lvid]._mirrors= it->second;
           vid2lvid_buffer[gvid] = lvid;
-          // std::cout << "proc " << rpc.procid() << " recevies flying vertex " << gvid << std::endl;
+          // for debug
+//         std::cout << "proc " << rpc.procid() << " recevies flying vertex " << gvid << std::endl;
         }
       } // end of master handshake
+      // debug
+//      std::cout << "after master handshake: " << rpc.procid() << ": " << graph.local_graph.num_vertices() << ", " << graph.num_local_own_vertices() << std::endl;
 
       /**************************************************************************/
       /*                                                                        */

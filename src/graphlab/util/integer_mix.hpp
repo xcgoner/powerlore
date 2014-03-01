@@ -38,6 +38,18 @@ inline uint32_t integer_mix(uint32_t a) {
   return a;
 }
 
+inline static size_t mix(size_t state) {
+  state += (state << 12);
+  state ^= (state >> 22);
+  state += (state << 4);
+  state ^= (state >> 9);
+  state += (state << 10);
+  state ^= (state >> 2);
+  state += (state << 7);
+  state ^= (state >> 12);
+  return state;
+}
+
 }
 #endif
 

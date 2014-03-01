@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef GRAPHLAB_DISTRIBUTED_CONSTELL_INGRESS_HPP
-#define GRAPHLAB_DISTRIBUTED_CONSTELL_INGRESS_HPP
+#ifndef GRAPHLAB_DISTRIBUTED_ZODIAC_INGRESS_HPP
+#define GRAPHLAB_DISTRIBUTED_ZODIAC_INGRESS_HPP
 
 #include <boost/functional/hash.hpp>
 #include <boost/dynamic_bitset.hpp>
@@ -47,7 +47,7 @@ namespace graphlab {
    * \brief Ingress object assigning edges using randoming hash function.
    */
   template<typename VertexData, typename EdgeData>
-  class distributed_constell_ingress :
+  class distributed_zodiac_ingress :
     public distributed_ingress_base<VertexData, EdgeData> {
   public:
     typedef distributed_graph<VertexData, EdgeData> graph_type;
@@ -65,7 +65,7 @@ namespace graphlab {
         vertex_id_buffer_type;
 
     /// The rpc interface for this object
-    dc_dist_object<distributed_constell_ingress> rpc;
+    dc_dist_object<distributed_zodiac_ingress> rpc;
     /// The underlying distributed graph object that is being loaded
     graph_type& graph;
 
@@ -153,18 +153,20 @@ namespace graphlab {
     typedef typename base_type::vertex_negotiator_record vertex_negotiator_record;
    
   public:
-    distributed_constell_ingress(distributed_control& dc, graph_type& graph, size_t interval = 10) :
+    distributed_zodiac_ingress(distributed_control& dc, graph_type& graph, size_t threshold = 0, size_t interval = 10) :
     base_type(dc, graph), rpc(dc, this),
-    graph(graph), interval(interval),
+    graph(graph), threshold(threshold), interval(interval),
     vertex_exchange(dc), edge_exchange(dc),
     mirror_exchange(dc), proc_edges_incre_exchange(dc)
     {
       /* fast pass for standalone case. */
-      standalone = rpc.numprocs() == 1;
+      if(this->threshold < rpc.numprocs())
+        this->threshold = rpc.numprocs();
+      this->standalone = rpc.numprocs() == 1;
       rpc.barrier();
     } // end of constructor
 
-    ~distributed_constell_ingress() { }
+    ~distributed_zodiac_ingress() { }
 
     /** Add an edge to the ingress object using random assignment. */
     void add_edge(vertex_id_type source, vertex_id_type target,
@@ -451,7 +453,7 @@ namespace graphlab {
 
       /**************************************************************************/
       /*                                                                        */
-      /*                       Prepare constell ingress                           */
+      /*                       Prepare zodiac ingress                           */
       /*                                                                        */
       /**************************************************************************/
 
@@ -514,24 +516,46 @@ namespace graphlab {
             vertex_degree_exchange.clear();
             // degree_set is ready
 
-            // filter the edges to be assigned
-            // rearrange the edges
+            // separate the low edges and high edges ...
+            std::vector<edge_buffer_record> low_edge_buffer;
+            std::vector<edge_buffer_record> high_edge_buffer;
+            foreach(const edge_buffer_record& rec, edge_recv_buffer) {
+              if(degree_set[rec.source] < threshold
+                  && degree_set[rec.target] < threshold) {
+                  if(rec.hash_flag == 0
+                    || ((degree_set[rec.source] >= degree_set[rec.target]) + 1) == rec.hash_flag)
+                  low_edge_buffer.push_back(rec);
+              }
+              else {
+                  if(rec.hash_flag == 0
+                      || ((degree_set[rec.source] >= degree_set[rec.target]) + 1) == rec.hash_flag)
+                    high_edge_buffer.push_back(rec);
+              }
+            }
+            //            foreach(const edge_buffer_record& rec, edge_recv_buffer) {
+            //              if(degree_set[rec.source] < threshold && degree_set[rec.target] < threshold)
+            //                low_edge_buffer.push_back(rec);
+            //              else
+            //                high_edge_buffer.push_back(rec);
+            //            }
+            std::vector<edge_buffer_record>().swap(edge_recv_buffer);
+            // release the memory ...
+
+            // rearrange the low edges
             {
               raw_map_type raw_map;
-              foreach(const edge_buffer_record& rec, edge_recv_buffer) {
-                if(rec.hash_flag == 0
-                    || ((degree_set[rec.source] >= degree_set[rec.target]) + 1) == rec.hash_flag)
-                  raw_map[rec.source].push_back(rec);
+              foreach(const edge_buffer_record& rec, low_edge_buffer) {
+                raw_map[rec.source].push_back(rec);
               }
-              const size_t edge_buffer_size = edge_recv_buffer.size();
-              std::vector<edge_buffer_record>().swap(edge_recv_buffer);
-              edge_recv_buffer.clear();
-              edge_recv_buffer.reserve(edge_buffer_size);
+              const size_t low_edge_buffer_size = low_edge_buffer.size();
+              std::vector<edge_buffer_record>().swap(low_edge_buffer);
+              low_edge_buffer.clear();
+              low_edge_buffer.reserve(low_edge_buffer_size);
               for (typename raw_map_type::iterator it = raw_map.begin();
                         it != raw_map.end(); ++it) {
                   size_t degree = it->second.size();
                   for(size_t i = 0; i < degree; ++i)
-                    edge_recv_buffer.push_back(it->second[i]);
+                    low_edge_buffer.push_back(it->second[i]);
               }
             }
 
@@ -543,13 +567,13 @@ namespace graphlab {
               num_edges = 0;
             }
 
-            // assign all
+            // assign the low edges
             rpc.full_barrier();
-            sync_assign(degree_set, edge_recv_buffer, proc_num_edges);
+            sync_assign(degree_set, low_edge_buffer, proc_num_edges);
+            low_edge_buffer.clear();
+            std::vector<edge_buffer_record>().swap(low_edge_buffer);
 
-            edge_exchange.flush();
-
-            // set up the map from vid to its master proc after mht is synchronized
+            // set up the map from vid to its master proc
             for(mht_type::iterator it = mht.begin(); it != mht.end(); it++) {
 //                if(graph_hash::hash_vertex(it->first) % nprocs == l_procid) {
                     std::vector<procid_t> master_candidates;
@@ -563,8 +587,29 @@ namespace graphlab {
 //                }
             }
 
+            // assign high edges
+            foreach(const edge_buffer_record& rec, high_edge_buffer) {
+              if(mht.count(rec.source) == 0)
+                mht[rec.source].clear();
+              if(mht.count(rec.target) == 0)
+                mht[rec.target].clear();
+              const procid_t best_pid = edge_to_proc_degree(rec.source, rec.target,
+                                          mht[rec.source], mht[rec.target],
+                                          proc_num_edges, degree_set);
+
+              edge_exchange.send(best_pid, rec);
+
+              mht[rec.source].set_bit(best_pid);
+              mht[rec.target].set_bit(best_pid);
+
+              proc_num_edges[best_pid]++;
+            }
+//            sync_assign(degree_set, high_edge_buffer, proc_num_edges);
+
+            edge_exchange.flush();
+
         } // end of if (!standalone)
-      } // end of Prepare constell ingress
+      } // end of Prepare zodiac ingress
 
       /**************************************************************************/
       /*                                                                        */
@@ -682,7 +727,8 @@ namespace graphlab {
         foreach(const vid2lvid_pair_type& pair, vid2lvid_buffer) {
             vertex_record& vrec = graph.lvid2record[pair.second];
             vrec.gvid = pair.first;
-//            vrec.owner = graph_hash::hash_vertex(pair.first) % nprocs;
+            if(master_map.find(pair.first) == master_map.end())
+              master_map[pair.first] = graph_hash::hash_vertex(pair.first) % nprocs;
             vrec.owner = master_map[pair.first];
             // for debug
 //            std::cout << l_procid << ":\t" << pair.first << ":\t" << vrec.owner << std::endl;
@@ -819,8 +865,8 @@ namespace graphlab {
 
         graphlab::graph_gather_apply<graph_type, vertex_negotiator_record>
             vrecord_sync_gas(graph,
-                             boost::bind(&distributed_constell_ingress::finalize_gather, this, _1, _2),
-                             boost::bind(&distributed_constell_ingress::finalize_apply, this, _1, _2, _3));
+                             boost::bind(&distributed_zodiac_ingress::finalize_gather, this, _1, _2),
+                             boost::bind(&distributed_zodiac_ingress::finalize_apply, this, _1, _2, _3));
         vrecord_sync_gas.exec(changed_vset);
 
         if(l_procid == 0)
@@ -859,7 +905,7 @@ namespace graphlab {
         vrec._mirrors = accum.mirrors;
     }
 
-  }; // end of distributed_constell_ingress
+  }; // end of distributed_zodiac_ingress
 }; // end of namespace graphlab
 #include <graphlab/macros_undef.hpp>
 

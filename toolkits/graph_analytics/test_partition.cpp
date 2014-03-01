@@ -160,11 +160,7 @@ struct pagerank_writer {
 }; // end of pagerank writer
 
 
-double map_rank(const graph_type::vertex_type& v) {
-  // for debug
-  std::cout << v.id() << "\t" << v.data() << std::endl;
-  return v.data();
-}
+double map_rank(const graph_type::vertex_type& v) { return v.data(); }
 
 
 double pagerank_sum(graph_type::vertex_type v) {
@@ -254,6 +250,9 @@ int main(int argc, char** argv) {
 
   dc.cout() << "#vertices: " << graph.num_vertices()
             << " #edges:" << graph.num_edges() << std::endl;
+
+  graphlab::mpi_tools::finalize();
+  return EXIT_SUCCESS;
 
   // Initialize the vertex data
   graph.transform_vertices(init_vertex);

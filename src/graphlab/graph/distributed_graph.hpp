@@ -94,6 +94,9 @@
 // libra
 #include <graphlab/graph/ingress/distributed_libra_ingress.hpp>
 
+// zodiac
+#include <graphlab/graph/ingress/distributed_zodiac_ingress.hpp>
+
 // constell
 #include <graphlab/graph/ingress/distributed_constell_ingress.hpp>
 
@@ -422,6 +425,7 @@ namespace graphlab {
     friend class distributed_hybrid_ingress<VertexData, EdgeData>;
     friend class distributed_hybrid_ginger_ingress<VertexData, EdgeData>;
     friend class distributed_libra_ingress<VertexData, EdgeData>;
+    friend class distributed_zodiac_ingress<VertexData, EdgeData>;
     friend class distributed_constell_ingress<VertexData, EdgeData>;
 
     typedef graphlab::vertex_id_type vertex_id_type;
@@ -3309,9 +3313,12 @@ namespace graphlab {
       } else if  (method == "libra") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use libra ingress" << std::endl;
         ingress_ptr = new distributed_libra_ingress<VertexData, EdgeData>(rpc.dc(), *this);
+      } else if  (method == "zodiac") {
+        if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use zodiac ingress" << std::endl;
+        ingress_ptr = new distributed_zodiac_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold, interval);
       } else if  (method == "constell") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use constell ingress" << std::endl;
-        ingress_ptr = new distributed_constell_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold, interval);
+        ingress_ptr = new distributed_constell_ingress<VertexData, EdgeData>(rpc.dc(), *this, interval);
       } else {
         // use default ingress method if none is specified
         std::string ingress_auto = "";

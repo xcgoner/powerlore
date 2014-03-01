@@ -30,7 +30,8 @@ namespace graphlab {
   namespace graph_hash {
     /** \brief Returns the hashed value of a vertex. */
     inline static size_t hash_vertex (const vertex_id_type vid) { 
-      return integer_mix(vid);
+//      return integer_mix(vid);
+      return mix(vid);
     }
 
     /** \brief Returns the hashed value of an edge. */
@@ -57,7 +58,8 @@ namespace graphlab {
 #endif
       vertex_id_type src = e.first;
       vertex_id_type dst = e.second;
-      return (integer_mix(src^a[seed%8]))^(integer_mix(dst^a[(seed+1)%8]));
+//      return (integer_mix(src^a[seed%8]))^(integer_mix(dst^a[(seed+1)%8]));
+      return (mix(src^a[seed%8]))^(mix(dst^a[(seed+1)%8]));
     }
   } // end of graph_hash namespace
 } // end of graphlab namespace
