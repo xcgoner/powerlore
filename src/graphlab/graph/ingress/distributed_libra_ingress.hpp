@@ -274,8 +274,6 @@ namespace graphlab {
             }
             vertex_degree_exchange.flush();
 
-            rpc.full_barrier();
-
             vertex_degree_buffer_type vertex_degree_buffer;
             while(vertex_degree_exchange.recv(proc, vertex_degree_buffer)) {
                 foreach(const vertex_degree_buffer_record& rec, vertex_degree_buffer) {

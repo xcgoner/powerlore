@@ -284,7 +284,7 @@ namespace graphlab {
             const mirror_buffer_record mirror_record(rec.source, best_pid);
             for(procid_t pid = 0; pid < rpc.numprocs(); pid++) {
               if(pid == l_procid)
-                mht[rec.source].set_bit(best_pid);
+                mht[rec.source].set_bit_unsync(best_pid);
               else {
                 mirror_exchange.send(pid, mirror_record);
 //                      mirror_exchange.partial_flush(0);
@@ -296,7 +296,7 @@ namespace graphlab {
             const mirror_buffer_record mirror_record(rec.target, best_pid);
             for(procid_t pid = 0; pid < rpc.numprocs(); pid++) {
               if(pid == l_procid)
-                mht[rec.target].set_bit(best_pid);
+                mht[rec.target].set_bit_unsync(best_pid);
               else {
                 mirror_exchange.send(pid, mirror_record);
 //                      mirror_exchange.partial_flush(0);
@@ -340,7 +340,7 @@ namespace graphlab {
                   foreach(const mirror_buffer_record& rec, mirror_buffer) {
                     if(mht.count(rec.vid) == 0)
                       mht[rec.vid].clear();
-                    mht[rec.vid].set_bit(rec.pid);
+                    mht[rec.vid].set_bit_unsync(rec.pid);
                   }
               } // end of while
               mirror_exchange.clear();
@@ -359,7 +359,7 @@ namespace graphlab {
               foreach(const mirror_buffer_record& rec, mirror_buffer) {
                 if(mht.count(rec.vid) == 0)
                   mht[rec.vid].clear();
-                mht[rec.vid].set_bit(rec.pid);
+                mht[rec.vid].set_bit_unsync(rec.pid);
               }
           } // end of while
           mirror_exchange.clear();
@@ -599,8 +599,8 @@ namespace graphlab {
 
               edge_exchange.send(best_pid, rec);
 
-              mht[rec.source].set_bit(best_pid);
-              mht[rec.target].set_bit(best_pid);
+              mht[rec.source].set_bit_unsync(best_pid);
+              mht[rec.target].set_bit_unsync(best_pid);
 
               proc_num_edges[best_pid]++;
             }
@@ -635,7 +635,7 @@ namespace graphlab {
               }
             } else {
               source_lvid = graph.vid2lvid[rec.source];
-              updated_lvids.set_bit(source_lvid);
+              updated_lvids.set_bit_unsync(source_lvid);
             }
             // Get the target_lvid;
             lvid_type target_lvid(-1);
@@ -648,7 +648,7 @@ namespace graphlab {
               }
             } else {
               target_lvid = graph.vid2lvid[rec.target];
-              updated_lvids.set_bit(target_lvid);
+              updated_lvids.set_bit_unsync(target_lvid);
             }
             graph.local_graph.add_edge(source_lvid, target_lvid, rec.edata);
 //            std::cout << l_procid << " add edge " << rec.source << "\t" << rec.target << std::endl;
@@ -698,7 +698,7 @@ namespace graphlab {
               }
             } else {
               lvid = graph.vid2lvid[rec.vid];
-              updated_lvids.set_bit(lvid);
+              updated_lvids.set_bit_unsync(lvid);
             }
             if (vertex_combine_strategy && lvid < graph.num_local_vertices()) {
               vertex_combine_strategy(graph.l_vertex(lvid).data(), rec.vdata);
@@ -785,15 +785,15 @@ namespace graphlab {
                   flying_vids_lock.lock();
                   mirror_type& mirrors = flying_vids[vid];
                   flying_vids_lock.unlock();
-                  mirrors.set_bit(recvid);
+                  mirrors.set_bit_unsync(recvid);
                 } else {
                   lvid_type lvid = vid2lvid_buffer[vid];
-                  graph.lvid2record[lvid]._mirrors.set_bit(recvid);
+                  graph.lvid2record[lvid]._mirrors.set_bit_unsync(recvid);
                 }
               } else {
                 lvid_type lvid = graph.vid2lvid[vid];
-                graph.lvid2record[lvid]._mirrors.set_bit(recvid);
-                updated_lvids.set_bit(lvid);
+                graph.lvid2record[lvid]._mirrors.set_bit_unsync(recvid);
+                updated_lvids.set_bit_unsync(lvid);
               }
             }
           }
@@ -854,7 +854,7 @@ namespace graphlab {
           changed_vset.make_explicit(graph);
           updated_lvids.resize(graph.num_local_vertices());
           for (lvid_type i = lvid_start; i <  graph.num_local_vertices(); ++i) {
-            updated_lvids.set_bit(i);
+            updated_lvids.set_bit_unsync(i);
           }
           changed_vset.localvset = updated_lvids;
           buffered_exchange<vertex_id_type> vset_exchange(rpc.dc());
