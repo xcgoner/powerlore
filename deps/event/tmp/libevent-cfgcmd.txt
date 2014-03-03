@@ -1,1 +1,0 @@
-cmd='<SOURCE_DIR>/configure;--prefix=<INSTALL_DIR>;--disable-openssl;--enable-shared=no'

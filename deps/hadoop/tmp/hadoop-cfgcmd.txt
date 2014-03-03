@@ -1,1 +1,0 @@
-cmd='<SOURCE_DIR>/src/c++/libhdfs/configure;JVM_ARCH=tune=generic;--prefix=<INSTALL_DIR>;--with-java=/usr/lib/jvm/java-6-openjdk;--enable-shared=no;--enable-static=yes'
