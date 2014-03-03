@@ -1,0 +1,3 @@
+repository='external project URL'
+module='http://graphlab.org/deps/eigen_3.1.2.tar.bz2'
+tag='MD5=e9c081360dde5e7dcb8eba3c8430fde2'

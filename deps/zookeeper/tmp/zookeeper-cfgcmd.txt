@@ -1,0 +1,1 @@
+cmd='./configure;--prefix=<INSTALL_DIR>;--disable-shared'

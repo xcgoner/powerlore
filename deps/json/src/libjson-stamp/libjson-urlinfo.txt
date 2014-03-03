@@ -1,0 +1,3 @@
+repository='external project URL'
+module='http://graphlab.org/deps/libjson_7.6.0.zip'
+tag='MD5=dcb326038bd9b710b8f717580c647833'

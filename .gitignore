@@ -8,7 +8,7 @@ profile/*
 dist/graphlabapi*
 doc/doxygen/*
 doc/doxygen_internal/*
-deps/*
+deps/local/*
 configure.deps
 config.log
 new_news.txt

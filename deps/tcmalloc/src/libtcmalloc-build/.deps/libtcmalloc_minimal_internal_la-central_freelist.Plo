@@ -1,0 +1,343 @@
+libtcmalloc_minimal_internal_la-central_freelist.lo: \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/central_freelist.cc \
+ src/config.h /usr/include/c++/4.7/algorithm /usr/include/c++/4.7/utility \
+ /usr/include/c++/4.7/x86_64-linux-gnu/bits/c++config.h \
+ /usr/include/c++/4.7/x86_64-linux-gnu/bits/os_defines.h \
+ /usr/include/features.h /usr/include/bits/predefs.h \
+ /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h \
+ /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h \
+ /usr/include/c++/4.7/x86_64-linux-gnu/bits/cpu_defines.h \
+ /usr/include/c++/4.7/bits/stl_relops.h \
+ /usr/include/c++/4.7/bits/stl_pair.h /usr/include/c++/4.7/bits/move.h \
+ /usr/include/c++/4.7/bits/concept_check.h \
+ /usr/include/c++/4.7/bits/stl_algobase.h \
+ /usr/include/c++/4.7/bits/functexcept.h \
+ /usr/include/c++/4.7/bits/exception_defines.h \
+ /usr/include/c++/4.7/bits/cpp_type_traits.h \
+ /usr/include/c++/4.7/ext/type_traits.h \
+ /usr/include/c++/4.7/ext/numeric_traits.h \
+ /usr/include/c++/4.7/bits/stl_iterator_base_types.h \
+ /usr/include/c++/4.7/bits/stl_iterator_base_funcs.h \
+ /usr/include/c++/4.7/bits/stl_iterator.h \
+ /usr/include/c++/4.7/debug/debug.h /usr/include/c++/4.7/bits/stl_algo.h \
+ /usr/include/c++/4.7/cstdlib /usr/include/stdlib.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.7/include/stddef.h \
+ /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h \
+ /usr/include/endian.h /usr/include/bits/endian.h \
+ /usr/include/bits/byteswap.h /usr/include/xlocale.h \
+ /usr/include/sys/types.h /usr/include/bits/types.h \
+ /usr/include/bits/typesizes.h /usr/include/time.h \
+ /usr/include/sys/select.h /usr/include/bits/select.h \
+ /usr/include/bits/sigset.h /usr/include/bits/time.h \
+ /usr/include/sys/sysmacros.h /usr/include/bits/pthreadtypes.h \
+ /usr/include/alloca.h /usr/include/bits/stdlib.h \
+ /usr/include/c++/4.7/bits/algorithmfwd.h \
+ /usr/include/c++/4.7/bits/stl_heap.h \
+ /usr/include/c++/4.7/bits/stl_tempbuf.h \
+ /usr/include/c++/4.7/bits/stl_construct.h /usr/include/c++/4.7/new \
+ /usr/include/c++/4.7/exception \
+ /usr/include/c++/4.7/bits/atomic_lockfree_defines.h \
+ /usr/include/c++/4.7/ext/alloc_traits.h \
+ /usr/include/c++/4.7/bits/allocator.h \
+ /usr/include/c++/4.7/x86_64-linux-gnu/bits/c++allocator.h \
+ /usr/include/c++/4.7/ext/new_allocator.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/central_freelist.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.7/include/stdint.h /usr/include/stdint.h \
+ /usr/include/bits/wchar.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/spinlock.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/atomicops.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/arm_instruction_set_select.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/atomicops-internals-x86.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/basictypes.h \
+ /usr/include/string.h /usr/include/bits/string3.h \
+ /usr/include/inttypes.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/dynamic_annotations.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/thread_annotations.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/thread_annotations.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/common.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/internal_logging.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/span.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/linked_list.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/page_heap.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/gperftools/malloc_extension.h \
+ /usr/include/c++/4.7/string /usr/include/c++/4.7/bits/stringfwd.h \
+ /usr/include/c++/4.7/bits/char_traits.h \
+ /usr/include/c++/4.7/bits/postypes.h /usr/include/c++/4.7/cwchar \
+ /usr/include/wchar.h /usr/include/stdio.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.7/include/stdarg.h \
+ /usr/include/bits/wchar2.h /usr/include/c++/4.7/bits/localefwd.h \
+ /usr/include/c++/4.7/x86_64-linux-gnu/bits/c++locale.h \
+ /usr/include/c++/4.7/clocale /usr/include/locale.h \
+ /usr/include/bits/locale.h /usr/include/c++/4.7/iosfwd \
+ /usr/include/c++/4.7/cctype /usr/include/ctype.h \
+ /usr/include/c++/4.7/bits/ostream_insert.h \
+ /usr/include/c++/4.7/bits/cxxabi_forced.h \
+ /usr/include/c++/4.7/bits/stl_function.h \
+ /usr/include/c++/4.7/backward/binders.h \
+ /usr/include/c++/4.7/bits/range_access.h \
+ /usr/include/c++/4.7/bits/basic_string.h \
+ /usr/include/c++/4.7/ext/atomicity.h \
+ /usr/include/c++/4.7/x86_64-linux-gnu/bits/gthr.h \
+ /usr/include/c++/4.7/x86_64-linux-gnu/bits/gthr-default.h \
+ /usr/include/pthread.h /usr/include/sched.h /usr/include/bits/sched.h \
+ /usr/include/signal.h /usr/include/bits/setjmp.h \
+ /usr/include/c++/4.7/x86_64-linux-gnu/bits/atomic_word.h \
+ /usr/include/c++/4.7/bits/basic_string.tcc /usr/include/c++/4.7/vector \
+ /usr/include/c++/4.7/bits/stl_uninitialized.h \
+ /usr/include/c++/4.7/bits/stl_vector.h \
+ /usr/include/c++/4.7/bits/stl_bvector.h \
+ /usr/include/c++/4.7/bits/vector.tcc \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/basictypes.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/packed-cache-inl.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/pagemap.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/static_vars.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/page_heap_allocator.h \
+ /home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/stack_trace_table.h
+
+src/config.h:
+
+/usr/include/c++/4.7/algorithm:
+
+/usr/include/c++/4.7/utility:
+
+/usr/include/c++/4.7/x86_64-linux-gnu/bits/c++config.h:
+
+/usr/include/c++/4.7/x86_64-linux-gnu/bits/os_defines.h:
+
+/usr/include/features.h:
+
+/usr/include/bits/predefs.h:
+
+/usr/include/sys/cdefs.h:
+
+/usr/include/bits/wordsize.h:
+
+/usr/include/gnu/stubs.h:
+
+/usr/include/gnu/stubs-64.h:
+
+/usr/include/c++/4.7/x86_64-linux-gnu/bits/cpu_defines.h:
+
+/usr/include/c++/4.7/bits/stl_relops.h:
+
+/usr/include/c++/4.7/bits/stl_pair.h:
+
+/usr/include/c++/4.7/bits/move.h:
+
+/usr/include/c++/4.7/bits/concept_check.h:
+
+/usr/include/c++/4.7/bits/stl_algobase.h:
+
+/usr/include/c++/4.7/bits/functexcept.h:
+
+/usr/include/c++/4.7/bits/exception_defines.h:
+
+/usr/include/c++/4.7/bits/cpp_type_traits.h:
+
+/usr/include/c++/4.7/ext/type_traits.h:
+
+/usr/include/c++/4.7/ext/numeric_traits.h:
+
+/usr/include/c++/4.7/bits/stl_iterator_base_types.h:
+
+/usr/include/c++/4.7/bits/stl_iterator_base_funcs.h:
+
+/usr/include/c++/4.7/bits/stl_iterator.h:
+
+/usr/include/c++/4.7/debug/debug.h:
+
+/usr/include/c++/4.7/bits/stl_algo.h:
+
+/usr/include/c++/4.7/cstdlib:
+
+/usr/include/stdlib.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.7/include/stddef.h:
+
+/usr/include/bits/waitflags.h:
+
+/usr/include/bits/waitstatus.h:
+
+/usr/include/endian.h:
+
+/usr/include/bits/endian.h:
+
+/usr/include/bits/byteswap.h:
+
+/usr/include/xlocale.h:
+
+/usr/include/sys/types.h:
+
+/usr/include/bits/types.h:
+
+/usr/include/bits/typesizes.h:
+
+/usr/include/time.h:
+
+/usr/include/sys/select.h:
+
+/usr/include/bits/select.h:
+
+/usr/include/bits/sigset.h:
+
+/usr/include/bits/time.h:
+
+/usr/include/sys/sysmacros.h:
+
+/usr/include/bits/pthreadtypes.h:
+
+/usr/include/alloca.h:
+
+/usr/include/bits/stdlib.h:
+
+/usr/include/c++/4.7/bits/algorithmfwd.h:
+
+/usr/include/c++/4.7/bits/stl_heap.h:
+
+/usr/include/c++/4.7/bits/stl_tempbuf.h:
+
+/usr/include/c++/4.7/bits/stl_construct.h:
+
+/usr/include/c++/4.7/new:
+
+/usr/include/c++/4.7/exception:
+
+/usr/include/c++/4.7/bits/atomic_lockfree_defines.h:
+
+/usr/include/c++/4.7/ext/alloc_traits.h:
+
+/usr/include/c++/4.7/bits/allocator.h:
+
+/usr/include/c++/4.7/x86_64-linux-gnu/bits/c++allocator.h:
+
+/usr/include/c++/4.7/ext/new_allocator.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/central_freelist.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.7/include/stdint.h:
+
+/usr/include/stdint.h:
+
+/usr/include/bits/wchar.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/spinlock.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/atomicops.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/arm_instruction_set_select.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/atomicops-internals-x86.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/basictypes.h:
+
+/usr/include/string.h:
+
+/usr/include/bits/string3.h:
+
+/usr/include/inttypes.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/dynamic_annotations.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/thread_annotations.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/thread_annotations.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/common.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/internal_logging.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/span.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/linked_list.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/page_heap.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/gperftools/malloc_extension.h:
+
+/usr/include/c++/4.7/string:
+
+/usr/include/c++/4.7/bits/stringfwd.h:
+
+/usr/include/c++/4.7/bits/char_traits.h:
+
+/usr/include/c++/4.7/bits/postypes.h:
+
+/usr/include/c++/4.7/cwchar:
+
+/usr/include/wchar.h:
+
+/usr/include/stdio.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.7/include/stdarg.h:
+
+/usr/include/bits/wchar2.h:
+
+/usr/include/c++/4.7/bits/localefwd.h:
+
+/usr/include/c++/4.7/x86_64-linux-gnu/bits/c++locale.h:
+
+/usr/include/c++/4.7/clocale:
+
+/usr/include/locale.h:
+
+/usr/include/bits/locale.h:
+
+/usr/include/c++/4.7/iosfwd:
+
+/usr/include/c++/4.7/cctype:
+
+/usr/include/ctype.h:
+
+/usr/include/c++/4.7/bits/ostream_insert.h:
+
+/usr/include/c++/4.7/bits/cxxabi_forced.h:
+
+/usr/include/c++/4.7/bits/stl_function.h:
+
+/usr/include/c++/4.7/backward/binders.h:
+
+/usr/include/c++/4.7/bits/range_access.h:
+
+/usr/include/c++/4.7/bits/basic_string.h:
+
+/usr/include/c++/4.7/ext/atomicity.h:
+
+/usr/include/c++/4.7/x86_64-linux-gnu/bits/gthr.h:
+
+/usr/include/c++/4.7/x86_64-linux-gnu/bits/gthr-default.h:
+
+/usr/include/pthread.h:
+
+/usr/include/sched.h:
+
+/usr/include/bits/sched.h:
+
+/usr/include/signal.h:
+
+/usr/include/bits/setjmp.h:
+
+/usr/include/c++/4.7/x86_64-linux-gnu/bits/atomic_word.h:
+
+/usr/include/c++/4.7/bits/basic_string.tcc:
+
+/usr/include/c++/4.7/vector:
+
+/usr/include/c++/4.7/bits/stl_uninitialized.h:
+
+/usr/include/c++/4.7/bits/stl_vector.h:
+
+/usr/include/c++/4.7/bits/stl_bvector.h:
+
+/usr/include/c++/4.7/bits/vector.tcc:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/base/basictypes.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/packed-cache-inl.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/pagemap.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/static_vars.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/page_heap_allocator.h:
+
+/home/xcgoner/mnt_src/powerlore/deps/tcmalloc/src/libtcmalloc/src/stack_trace_table.h:

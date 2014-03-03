@@ -1,0 +1,1 @@
+cmd='./bootstrap.sh;--with-libraries=filesystem;--with-libraries=program_options;--with-libraries=system;--with-libraries=iostreams;--with-libraries=date_time;--with-libraries=random;--with-libraries=context;--prefix=<INSTALL_DIR>'

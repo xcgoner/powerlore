@@ -1,0 +1,3 @@
+repository='external project URL'
+module='http://gperftools.googlecode.com/files/gperftools-2.0.tar.gz'
+tag='MD5=13f6e8961bc6a26749783137995786b6'
