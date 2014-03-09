@@ -23,6 +23,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <iostream>
 
 #include <graphlab.hpp>
 // #include <graphlab/macros_def.hpp>
@@ -190,7 +191,12 @@ int main(int argc, char** argv) {
                        "The graph file format");
   size_t powerlaw = 0;
   clopts.attach_option("powerlaw", powerlaw,
-                       "Generate a synthetic powerlaw out-degree graph. ");
+                       "Generate a synthetic powerlaw degree graph. ");
+  double alpha = 2.1, beta = 2.2;
+  clopts.attach_option("alpha", alpha,
+                         "Power-law constant for indegree ");
+  clopts.attach_option("beta", beta,
+                         "Power-law constant for outdegree ");
   clopts.attach_option("iterations", ITERATIONS,
                        "If set, will force the use of the synchronous engine"
                        "overriding any engine option set by the --engine parameter. "
@@ -203,6 +209,11 @@ int main(int argc, char** argv) {
   clopts.attach_option("saveprefix", saveprefix,
                        "If set, will save the resultant pagerank to a "
                        "sequence of files with prefix saveprefix");
+
+  std::string result_file;
+  clopts.attach_option("result_file", result_file,
+                       "If set, will save the test result to the"
+                       "specific file");
 
   if(!clopts.parse(argc, argv)) {
     dc.cout() << "Error in parsing command line arguments." << std::endl;
@@ -228,7 +239,7 @@ int main(int argc, char** argv) {
   graph_type graph(dc, clopts);
   if(powerlaw > 0) { // make a synthetic graph
     dc.cout() << "Loading synthetic Powerlaw graph." << std::endl;
-    graph.load_synthetic_powerlaw(powerlaw, false, 2.1, 100000000);
+    graph.load_synthetic_powerlaw(powerlaw, alpha, beta, 100000000);
   }
   else if (graph_dir.length() > 0) { // Load the graph from a file
     dc.cout() << "Loading graph in format: "<< format << std::endl;
@@ -245,20 +256,21 @@ int main(int argc, char** argv) {
   dc.cout() << "Finalizing graph." << std::endl;
   timer.start();
   graph.finalize();
+  const double ingress_time = timer.current_time();
   dc.cout() << "Finalizing graph. Finished in " 
-    << timer.current_time() << std::endl;
+    << ingress_time << std::endl;
 
   dc.cout() << "#vertices: " << graph.num_vertices()
             << " #edges:" << graph.num_edges() << std::endl;
 
-  graphlab::mpi_tools::finalize();
-  return EXIT_SUCCESS;
+//  graphlab::mpi_tools::finalize();
+//  return EXIT_SUCCESS;
 
   // Initialize the vertex data
   graph.transform_vertices(init_vertex);
 
   // Running The Engine -------------------------------------------------------
-  graphlab::omni_engine<pagerank> engine(dc, graph, exec_type, clopts);
+  graphlab::synchronous_engine<pagerank> engine(dc, graph, clopts);
   engine.signal_all();
   timer.start();
   engine.start();
@@ -272,7 +284,8 @@ int main(int argc, char** argv) {
             << engine.num_updates() / runtime << std::endl;
 
   const double total_rank = graph.map_reduce_vertices<double>(map_rank);
-  std::cout << "Total rank: " << total_rank << std::endl;
+  if(dc.procid() == 0)
+    std::cout << "Total rank: " << total_rank << std::endl;
 
   // Save the final graph -----------------------------------------------------
   if (saveprefix != "") {
@@ -280,6 +293,31 @@ int main(int argc, char** argv) {
                false,    // do not gzip
                true,     // save vertices
                false);   // do not save edges
+  }
+
+  if(dc.procid() == 0) {
+      std::cout << graph.num_replicas() << "\t"
+                << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+                << graph.get_edge_balance() << "\t"
+                << graph.get_vertex_balance() << "\t"
+                << ingress_time << "\t"
+                << engine.get_exec_time() << "\t"
+                << engine.get_one_itr_time() << "\t"
+                << engine.get_compute_balance() << "\t"
+                << std::endl;
+      if(result_file != "") {
+          std::fstream fout(result_file.c_str(), std::ios::app);
+          fout << graph.num_replicas() << "\t"
+              << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+              << graph.get_edge_balance() << "\t"
+              << graph.get_vertex_balance() << "\t"
+              << ingress_time << "\t"
+              << engine.get_exec_time() << "\t"
+              << engine.get_one_itr_time() << "\t"
+              << engine.get_compute_balance() << "\t"
+              << std::endl;
+          fout.close();
+      }
   }
 
   // Tear-down communication layer and quit -----------------------------------

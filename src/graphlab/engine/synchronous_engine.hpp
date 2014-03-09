@@ -400,6 +400,10 @@ namespace graphlab {
      */
     double exec_time;
 
+    double one_itr_time;
+
+    double compute_balance;
+
     /**
      * \brief The time spends on exch-msgs phase.
      */
@@ -733,6 +737,12 @@ namespace graphlab {
      * clear all the messages.
      */
     void init();
+
+    double get_exec_time() const { return exec_time; }
+
+    double get_one_itr_time() const { return one_itr_time; }
+
+    double get_compute_balance() const { return compute_balance; }
 
 
   private:
@@ -1470,6 +1480,8 @@ namespace graphlab {
       // probe the aggregator
       aggregator.tick_synchronous();
 
+      if(iteration_counter == 0)
+        one_itr_time = ti.current_time();
       ++iteration_counter;
 
       if (snapshot_interval > 0 && iteration_counter % snapshot_interval == 0) {
@@ -1517,6 +1529,12 @@ namespace graphlab {
       for (size_t i = 0;i < all_compute_time_vec.size(); ++i) {
         logstream(LOG_INFO) << all_compute_time_vec[i] << " ";
       }
+      compute_balance = *std::max_element(all_compute_time_vec.begin(), all_compute_time_vec.end())
+                          * (double)rmi.numprocs()
+                          / std::accumulate(all_compute_time_vec.begin(), all_compute_time_vec.end(), 0);
+      logstream(LOG_EMPH) << "Compute Balance: "
+          << compute_balance
+          << std::endl;
 #ifdef TUNING
       logstream(LOG_INFO) << "Total Calls(G|A|S): " 
                           << completed_gathers.value << "|" 

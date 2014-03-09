@@ -2480,6 +2480,52 @@ namespace graphlab {
       rpc.full_barrier();
     } // end of load random powerlaw
 
+    void load_synthetic_powerlaw2(size_t nverts,
+                                     double alpha = 2.1, double beta = 2.2,
+                                     size_t truncate = (size_t)(-1)) {
+      rpc.full_barrier();
+      std::vector<double> prob_in(std::min(nverts, truncate), 0);
+      std::vector<double> prob_out(std::min(nverts, truncate), 0);
+      logstream(LOG_INFO) << "constructing pdf" << std::endl;
+      for(size_t i = 0; i < prob_in.size(); ++i)
+        prob_in[i] = std::pow(double(i+1), -alpha);
+      for(size_t i = 0; i < prob_out.size(); ++i)
+        prob_out[i] = std::pow(double(i+1), -beta);
+      logstream(LOG_INFO) << "constructing cdf" << std::endl;
+      random::pdf2cdf(prob_in);
+      random::pdf2cdf(prob_out);
+      logstream(LOG_INFO) << "Building graph" << std::endl;
+      size_t target_index = rpc.procid();
+      size_t addedvtx = 0;
+
+      // A large prime number
+      const size_t HASH_OFFSET = 2654435761;
+      for(size_t source = rpc.procid(); source < nverts;
+          source += rpc.numprocs()) {
+        const size_t in_degree = random::multinomial_cdf(prob_in) + 1;
+        const size_t out_degree = random::multinomial_cdf(prob_out) + 1;
+        for(size_t i = 0; i < in_degree; ++i) {
+          target_index = (target_index + HASH_OFFSET)  % nverts;
+          while (source == target_index) {
+            target_index = (target_index + HASH_OFFSET)  % nverts;
+          }
+          add_edge(target_index, source);
+        }
+        for(size_t i = 0; i < out_degree; ++i) {
+          target_index = (target_index + HASH_OFFSET)  % nverts;
+          while (source == target_index) {
+            target_index = (target_index + HASH_OFFSET)  % nverts;
+          }
+          add_edge(source, target_index);
+        }
+        ++addedvtx;
+        if (addedvtx % 10000000 == 0) {
+          logstream(LOG_EMPH) << addedvtx << " inserted\n";
+        }
+      }
+      rpc.full_barrier();
+    } // end of load random powerlaw
+
 
     /**
      *  \brief load a graph with a standard format. Must be called on all
@@ -2745,6 +2791,9 @@ namespace graphlab {
     /** \internal
      *\brief Get the Total number of vertex replicas in the graph */
     size_t num_replicas() const { return nreplicas; }
+
+    double get_edge_balance() const { return edge_balance; }
+    double get_vertex_balance() const { return vertex_balance; }
 
     /** \internal
      *\brief Get the number of vertices local to this proc */
@@ -3268,6 +3317,10 @@ namespace graphlab {
 
     /** Command option to enable data affinity. Currently only supported by bipartite */
     bool data_affinity;
+
+    // logs for graph partitioning ...
+    double edge_balance;
+    double vertex_balance;
 
     lock_manager_type lock_manager;
 

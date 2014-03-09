@@ -543,8 +543,9 @@ namespace graphlab {
         foreach(size_t count, swap_counts) graph.nedges += count;
         if (rpc.procid() == 0) {
           size_t max = *std::max_element(swap_counts.begin(), swap_counts.end());
+          graph.edge_balance = (double) max / ((double) graph.nedges / rpc.numprocs());
           logstream(LOG_EMPH) << "edges balance: " 
-                              << (double) max / ((double) graph.nedges / rpc.numprocs())
+                              << graph.edge_balance
                               << std::endl;
         }
 
@@ -556,8 +557,9 @@ namespace graphlab {
         foreach(size_t count, swap_counts) graph.nverts += count;
         if (rpc.procid() == 0) {
           size_t max = *std::max_element(swap_counts.begin(), swap_counts.end());
+          graph.vertex_balance = (double) max / ((double) graph.nverts / rpc.numprocs());
           logstream(LOG_EMPH) << "own vertices balance: " 
-                              << (double) max / ((double) graph.nverts / rpc.numprocs())
+                              << graph.vertex_balance
                               << std::endl;
         }
 
