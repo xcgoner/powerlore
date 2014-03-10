@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
   graphlab::command_line_options clopts("Connected Component.");
   std::string graph_dir;
   std::string saveprefix;
-  std::string format = "adj";
+  std::string format = "snap";
   std::string exec_type = "synchronous";
   clopts.attach_option("graph", graph_dir,
                        "The graph file. This is not optional");
@@ -171,6 +171,7 @@ int main(int argc, char** argv) {
                          "Power-law constant for indegree ");
   clopts.attach_option("beta", beta,
                          "Power-law constant for outdegree ");
+  size_t ITERATIONS = 0;
   clopts.attach_option("iterations", ITERATIONS,
                        "If set, will force the use of the synchronous engine"
                        "overriding any engine option set by the --engine parameter. "
@@ -181,6 +182,10 @@ int main(int argc, char** argv) {
                        "If set, will save the pairs of a vertex id and "
                        "a component id to a sequence of files with prefix "
                        "saveprefix");
+  std::string result_file;
+  clopts.attach_option("result_file", result_file,
+                       "If set, will save the test result to the"
+                       "specific file");
   if (!clopts.parse(argc, argv)) {
     dc.cout() << "Error in parsing command line arguments." << std::endl;
     return EXIT_FAILURE;
@@ -203,18 +208,36 @@ int main(int argc, char** argv) {
 
   //load graph
   dc.cout() << "Loading graph in format: "<< format << std::endl;
-  graph.load_format(graph_dir, format);
+  if(powerlaw > 0) { // make a synthetic graph
+    dc.cout() << "Loading synthetic Powerlaw graph." << std::endl;
+    graph.load_synthetic_powerlaw(powerlaw, alpha, beta, 100000000);
+  }
+  else if (graph_dir.length() > 0) { // Load the graph from a file
+    dc.cout() << "Loading graph in format: "<< format << std::endl;
+    graph.load_format(graph_dir, format);
+  }
+  else {
+    dc.cout() << "graph or powerlaw option must be specified" << std::endl;
+    clopts.print_description();
+    return 0;
+  }
   graphlab::timer ti;
+  ti.start();
   graph.finalize();
-  dc.cout() << "Finalization in " << ti.current_time() << std::endl;
+  const double ingress_time = ti.current_time();
+  dc.cout() << "Finalizing graph. Finished in "
+    << ingress_time << std::endl;
+
+  dc.cout() << "#vertices: " << graph.num_vertices()
+            << " #edges:" << graph.num_edges() << std::endl;
   graph.transform_vertices(initialize_vertex);
 
   //running the engine
-  time_t start, end;
-  graphlab::omni_engine<label_propagation> engine(dc, graph, exec_type, clopts);
+  graphlab::synchronous_engine<label_propagation> engine(dc, graph, clopts);
   engine.signal_all();
-  time(&start);
+  ti.start();
   engine.start();
+  const double runtime = ti.current_time();
 
   //write results
   if (saveprefix.size() > 0) {
@@ -222,6 +245,31 @@ int main(int argc, char** argv) {
         false, //set to true if each output file is to be gzipped
         true, //whether vertices are saved
         false); //whether edges are saved
+  }
+
+  if(dc.procid() == 0) {
+      std::cout << graph.num_replicas() << "\t"
+                << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+                << graph.get_edge_balance() << "\t"
+                << graph.get_vertex_balance() << "\t"
+                << ingress_time << "\t"
+                << engine.get_exec_time() << "\t"
+                << engine.get_one_itr_time() << "\t"
+                << engine.get_compute_balance() << "\t"
+                << std::endl;
+      if(result_file != "") {
+          std::fstream fout(result_file.c_str(), std::ios::app);
+          fout << graph.num_replicas() << "\t"
+              << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+              << graph.get_edge_balance() << "\t"
+              << graph.get_vertex_balance() << "\t"
+              << ingress_time << "\t"
+              << engine.get_exec_time() << "\t"
+              << engine.get_one_itr_time() << "\t"
+              << engine.get_compute_balance() << "\t"
+              << std::endl;
+          fout.close();
+      }
   }
 
   graphlab::mpi_tools::finalize();

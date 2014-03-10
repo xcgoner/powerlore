@@ -15,6 +15,7 @@ add_graphlab_executable(eigen_vector_normalization eigen_vector_normalization.cp
 add_graphlab_executable(graph_laplacian graph_laplacian.cpp)
 add_graphlab_executable(partitioning partitioning.cpp)
 add_graphlab_executable(test_partition test_partition.cpp)
+add_graphlab_executable(test_cc test_cc.cpp)
 
 # add_graphlab_executable(warp_pagerank warp_pagerank.cpp)
 # add_graphlab_executable(warp_pagerank2 warp_pagerank2.cpp)

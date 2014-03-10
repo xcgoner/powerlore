@@ -296,6 +296,15 @@ int main(int argc, char** argv) {
   }
 
   if(dc.procid() == 0) {
+      std::cout << "#replica" << "\t"
+                      << "replica_factor" << "\t"
+                      << "edge_balance" << "\t"
+                      << "vertex_balance" << "\t"
+                      << "ingress_time" << "\t"
+                      << "exec_time" << "\t"
+                      << "one_itr_time" << "\t"
+                      << "work_imbalance" << "\t"
+                      << std::endl;
       std::cout << graph.num_replicas() << "\t"
                 << (double)graph.num_replicas()/graph.num_vertices() << "\t"
                 << graph.get_edge_balance() << "\t"
