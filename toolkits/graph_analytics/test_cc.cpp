@@ -190,10 +190,6 @@ int main(int argc, char** argv) {
     dc.cout() << "Error in parsing command line arguments." << std::endl;
     return EXIT_FAILURE;
   }
-  if (graph_dir == "") {
-    std::cout << "--graph is not optional\n";
-    return EXIT_FAILURE;
-  }
 
   if (ITERATIONS) {
     // make sure this is the synchronous engine
