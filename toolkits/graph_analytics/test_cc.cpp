@@ -147,7 +147,7 @@ public:
 };
 
 int main(int argc, char** argv) {
-  std::cout << "Connected Component\n\n";
+//  std::cout << "Connected Component\n\n";
 
   graphlab::mpi_tools::init(argc, argv);
   graphlab::distributed_control dc;
@@ -254,7 +254,20 @@ int main(int argc, char** argv) {
                 << engine.get_compute_balance() << "\t"
                 << std::endl;
       if(result_file != "") {
-          std::fstream fout(result_file.c_str(), std::ios::app);
+          std::cout << "saving the result to " << result_file << std::endl;
+          std::ofstream fout(result_file.c_str(), std::ios::app);
+          if(powerlaw > 0) {
+              fout << "powerlaw synthetic: " << powerlaw << "\t"
+                  << alpha << "\t" << beta << "\t" << dc.numprocs() << std::endl;
+          }
+          else {
+              fout << "real-world graph: " << graph_dir << "\t"
+                  << graph.num_vertices() << "\t" << graph.num_edges()
+                  << "\t" << dc.numprocs() << std::endl;
+          }
+          std::string ingress_method = "";
+          clopts.get_graph_args().get_option("ingress", ingress_method);
+          fout << ingress_method << "\t";
           fout << graph.num_replicas() << "\t"
               << (double)graph.num_replicas()/graph.num_vertices() << "\t"
               << graph.get_edge_balance() << "\t"
