@@ -2239,6 +2239,7 @@ namespace graphlab {
       std::string directory_name; std::string original_path(prefix);
       boost::filesystem::path path(prefix);
       std::string search_prefix;
+      logstream(LOG_EMPH) << "proc_id: " << rpc.procid() << std::endl;
       if (boost::filesystem::is_directory(path)) {
         // if this is a directory
         // force a "/" at the end of the path

@@ -85,7 +85,7 @@ public:
    */
   edge_dir_type gather_edges(icontext_type& context,
                               const vertex_type& vertex) const {
-    return graphlab::IN_EDGES;
+    return graphlab::ALL_EDGES;
   } // end of Gather edges
 
 
@@ -108,29 +108,32 @@ public:
   /* The scatter edges depend on whether the pagerank has converged */
   edge_dir_type scatter_edges(icontext_type& context,
                               const vertex_type& vertex) const {
-    // If an iteration counter is set then
-    if (ITERATIONS) return graphlab::NO_EDGES;
-    // In the dynamic case we run scatter on out edges if the we need
-    // to maintain the delta cache or the tolerance is above bound.
-    if(USE_DELTA_CACHE || std::fabs(last_change) > TOLERANCE ) {
-      return graphlab::OUT_EDGES;
-    } else {
-      return graphlab::NO_EDGES;
-    }
+//    // If an iteration counter is set then
+//    if (ITERATIONS) return graphlab::NO_EDGES;
+//    // In the dynamic case we run scatter on out edges if the we need
+//    // to maintain the delta cache or the tolerance is above bound.
+//    if(USE_DELTA_CACHE || std::fabs(last_change) > TOLERANCE ) {
+//      return graphlab::OUT_EDGES;
+//    } else {
+//      return graphlab::NO_EDGES;
+//    }
+    return graphlab::ALL_EDGES;
   }
 
   /* The scatter function just signal adjacent pages */
   void scatter(icontext_type& context, const vertex_type& vertex,
                edge_type& edge) const {
-    if(USE_DELTA_CACHE) {
-      context.post_delta(edge.target(), last_change);
-    }
-
-    if(last_change > TOLERANCE || last_change < -TOLERANCE) {
-        context.signal(edge.target());
-    } else {
-      context.signal(edge.target()); //, std::fabs(last_change));
-    }
+//    if(USE_DELTA_CACHE) {
+//      context.post_delta(edge.target(), last_change);
+//    }
+//
+//    if(last_change > TOLERANCE || last_change < -TOLERANCE) {
+//        context.signal(edge.target());
+//    } else {
+//      context.signal(edge.target()); //, std::fabs(last_change));
+//    }
+    context.signal(edge.target());
+    context.signal(edge.source());
   }
 
   void save(graphlab::oarchive& oarc) const {
@@ -242,7 +245,8 @@ int main(int argc, char** argv) {
     graph.load_synthetic_powerlaw(powerlaw, alpha, beta, 100000000);
   }
   else if (graph_dir.length() > 0) { // Load the graph from a file
-    dc.cout() << "Loading graph in format: "<< format << std::endl;
+      if(dc.procid() == 24)
+    std::cout << "Loading graph in format: "<< format << std::endl;
     graph.load_format(graph_dir, format);
   }
   else {
@@ -275,17 +279,17 @@ int main(int argc, char** argv) {
   timer.start();
   engine.start();
   const double runtime = timer.current_time();
-  dc.cout() << "----------------------------------------------------------"
-            << std::endl
-            << "Final Runtime (seconds):   " << runtime 
-            << std::endl
-            << "Updates executed: " << engine.num_updates() << std::endl
-            << "Update Rate (updates/second): " 
-            << engine.num_updates() / runtime << std::endl;
+//  dc.cout() << "----------------------------------------------------------"
+//            << std::endl
+//            << "Final Runtime (seconds):   " << runtime
+//            << std::endl
+//            << "Updates executed: " << engine.num_updates() << std::endl
+//            << "Update Rate (updates/second): "
+//            << engine.num_updates() / runtime << std::endl;
 
   const double total_rank = graph.map_reduce_vertices<double>(map_rank);
-  if(dc.procid() == 0)
-    std::cout << "Total rank: " << total_rank << std::endl;
+//  if(dc.procid() == 0)
+//    std::cout << "Total rank: " << total_rank << std::endl;
 
   // Save the final graph -----------------------------------------------------
   if (saveprefix != "") {
@@ -296,16 +300,31 @@ int main(int argc, char** argv) {
   }
 
   if(dc.procid() == 0) {
-      std::cout << "#replica" << "\t"
-                      << "replica_factor" << "\t"
-                      << "edge_balance" << "\t"
-                      << "vertex_balance" << "\t"
-                      << "ingress_time" << "\t"
-                      << "exec_time" << "\t"
-                      << "one_itr_time" << "\t"
-                      << "work_imbalance" << "\t"
-                      << std::endl;
-      std::cout << graph.num_replicas() << "\t"
+        std::cout << graph.num_replicas() << "\t"
+                  << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+                  << graph.get_edge_balance() << "\t"
+                  << graph.get_vertex_balance() << "\t"
+                  << ingress_time << "\t"
+                  << engine.get_exec_time() << "\t"
+                  << engine.get_one_itr_time() << "\t"
+                  << engine.get_compute_balance() << "\t"
+                  << std::endl;
+        if(result_file != "") {
+            std::cout << "saving the result to " << result_file << std::endl;
+            std::ofstream fout(result_file.c_str(), std::ios::app);
+            if(powerlaw > 0) {
+                fout << "powerlaw synthetic: " << powerlaw << "\t"
+                    << alpha << "\t" << beta << "\t" << dc.numprocs() << std::endl;
+            }
+            else {
+                fout << "real-world graph: " << graph_dir << "\t"
+                    << graph.num_vertices() << "\t" << graph.num_edges()
+                    << "\t" << dc.numprocs() << std::endl;
+            }
+            std::string ingress_method = "";
+            clopts.get_graph_args().get_option("ingress", ingress_method);
+            fout << ingress_method << "\t";
+            fout << graph.num_replicas() << "\t"
                 << (double)graph.num_replicas()/graph.num_vertices() << "\t"
                 << graph.get_edge_balance() << "\t"
                 << graph.get_vertex_balance() << "\t"
@@ -314,20 +333,9 @@ int main(int argc, char** argv) {
                 << engine.get_one_itr_time() << "\t"
                 << engine.get_compute_balance() << "\t"
                 << std::endl;
-      if(result_file != "") {
-          std::fstream fout(result_file.c_str(), std::ios::app);
-          fout << graph.num_replicas() << "\t"
-              << (double)graph.num_replicas()/graph.num_vertices() << "\t"
-              << graph.get_edge_balance() << "\t"
-              << graph.get_vertex_balance() << "\t"
-              << ingress_time << "\t"
-              << engine.get_exec_time() << "\t"
-              << engine.get_one_itr_time() << "\t"
-              << engine.get_compute_balance() << "\t"
-              << std::endl;
-          fout.close();
-      }
-  }
+            fout.close();
+        }
+    }
 
   // Tear-down communication layer and quit -----------------------------------
   graphlab::mpi_tools::finalize();
