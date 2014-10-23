@@ -24,6 +24,7 @@
 #include <boost/unordered_set.hpp>
 #include <graphlab.hpp>
 #include <graphlab/macros_def.hpp>
+#include "../../src/graphlab/util/timer.hpp"
 /**
  *
  * In this program we implement the "k-core" decomposition algorithm.
@@ -246,17 +247,23 @@ int main(int argc, char** argv) {
   // load graph
   graph_type graph(dc, clopts);
   graph.load_format(prefix, format);
-  graph.finalize();
-  dc.cout() << "Number of vertices: " << graph.num_vertices() << std::endl
-            << "Number of edges:    " << graph.num_edges() << std::endl;
 
   graphlab::timer ti;
+
+  ti.start();
+  graph.finalize();
+  const double ingress_time = ti.current_time();
+  dc.cout() << "Finalizing graph. Finished in "
+      << ingress_time << std::endl;
+  dc.cout() << "Number of vertices: " << graph.num_vertices() << std::endl
+            << "Number of edges:    " << graph.num_edges() << std::endl;
 
   graphlab::synchronous_engine<k_core> engine(dc, graph, clopts);
 
   // initialize the vertex data with the degree
   graph.transform_vertices(initialize_vertex_values);
 
+  ti.start();
   // for each K value
   for (CURRENT_K = kmin; CURRENT_K <= kmax; CURRENT_K++) {
     // signal all vertices with degree less than K
@@ -280,6 +287,20 @@ int main(int argc, char** argv) {
                  true, /* save edge */ 
                  clopts.get_ncpus()); /* one file per machine */
     }
+  }
+  const double runtime = ti.current_time();
+
+  if(dc.procid() == 0) {
+    std::cout << graph.num_replicas() << "\t"
+        << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+        << graph.get_edge_balance() << "\t"
+        << graph.get_vertex_balance() << "\t"
+        << ingress_time << "\t"
+        << runtime << "\t"
+//        << engine.get_exec_time() << "\t"
+//        << engine.get_one_itr_time() << "\t"
+//        << engine.get_compute_balance() << "\t"
+        << std::endl;
   }
   
   graphlab::mpi_tools::finalize();

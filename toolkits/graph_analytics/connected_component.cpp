@@ -31,6 +31,8 @@
 #include <graphlab.hpp>
 #include <graphlab/graph/distributed_graph.hpp>
 
+size_t ITERATIONS = 0;
+
 struct vdata {
   uint64_t labelid;
   vdata() :

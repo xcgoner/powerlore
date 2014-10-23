@@ -162,7 +162,7 @@ struct pagerank_writer {
 
 double map_rank(const graph_type::vertex_type& v) {
   // for debug
-  std::cout << v.id() << "\t" << v.data() << std::endl;
+//  std::cout << v.id() << "\t" << v.data() << std::endl;
   return v.data();
 }
 
@@ -249,8 +249,9 @@ int main(int argc, char** argv) {
   dc.cout() << "Finalizing graph." << std::endl;
   timer.start();
   graph.finalize();
-  dc.cout() << "Finalizing graph. Finished in " 
-    << timer.current_time() << std::endl;
+  const double ingress_time = timer.current_time();
+  dc.cout() << "Finalizing graph. Finished in "
+      << ingress_time << std::endl;
 
   dc.cout() << "#vertices: " << graph.num_vertices()
             << " #edges:" << graph.num_edges() << std::endl;
@@ -259,22 +260,34 @@ int main(int argc, char** argv) {
   graph.transform_vertices(init_vertex);
 
   // Running The Engine -------------------------------------------------------
-  graphlab::omni_engine<pagerank> engine(dc, graph, exec_type, clopts);
+//  graphlab::omni_engine<pagerank> engine(dc, graph, exec_type, clopts);
+  graphlab::synchronous_engine<pagerank> engine(dc, graph, clopts);
   engine.signal_all();
   timer.start();
   engine.start();
   const double runtime = timer.current_time();
-  dc.cout() << "----------------------------------------------------------"
-            << std::endl
-            << "Final Runtime (seconds):   " << runtime 
-            << std::endl
-            << "Updates executed: " << engine.num_updates() << std::endl
-            << "Update Rate (updates/second): " 
-            << engine.num_updates() / runtime << std::endl;
+//  dc.cout() << "----------------------------------------------------------"
+//            << std::endl
+//            << "Final Runtime (seconds):   " << runtime
+//            << std::endl
+//            << "Updates executed: " << engine.num_updates() << std::endl
+//            << "Update Rate (updates/second): "
+//            << engine.num_updates() / runtime << std::endl;
 
   const double total_rank = graph.map_reduce_vertices<double>(map_rank);
   std::cout << "Total rank: " << total_rank << std::endl;
 
+  if(dc.procid() == 0) {
+    std::cout << graph.num_replicas() << "\t"
+        << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+        << graph.get_edge_balance() << "\t"
+        << graph.get_vertex_balance() << "\t"
+        << ingress_time << "\t"
+        << engine.get_exec_time() << "\t"
+        << engine.get_one_itr_time() << "\t"
+        << engine.get_compute_balance() << "\t"
+        << std::endl;
+  }
   // Save the final graph -----------------------------------------------------
   if (saveprefix != "") {
     graph.save(saveprefix, pagerank_writer(),

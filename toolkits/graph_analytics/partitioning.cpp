@@ -94,7 +94,7 @@ bool call_svd(const std::string& mpi_args, const std::string& filename,
   std::stringstream strm;
   if(mpi_args.length() > 0)
     strm << "mpiexec " << mpi_args << " ";
-  strm << svd_dir << "svd " + filename + ".glap";
+  strm << svd_dir << "svd --matrix=" + filename + ".glap";
   strm << " --rows=" << num_data+1;
   strm << " --cols=" << num_data;
   strm << " --nsv=" << num_clusters;
@@ -103,8 +103,8 @@ bool call_svd(const std::string& mpi_args, const std::string& filename,
   strm << " --quiet=1";
   strm << " --save_vectors=1";
   strm << " --ortho_repeats=3";
-  strm << " --id=1";
-  strm << " --prediction=" << filename + ".";
+//  strm << " --id=1";
+  strm << " --predictions=" << filename + ".";
   strm << " --initial_vector=" << filename + ".init";
   strm << " " << args;
   std::cout << "CALLING >" << strm.str() << std::endl;

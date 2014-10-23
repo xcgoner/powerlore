@@ -296,6 +296,13 @@ int main(int argc, char** argv) {
   clopts.attach_option("use-sketch", use_sketch,
                        "If true, will use Flajolet & Martin bitmask, "
                        "which is more compact and faster.");
+  size_t ITERATIONS = 5;
+  clopts.attach_option("iterations", ITERATIONS,
+      "If set, will force the use of the synchronous engine"
+          "overriding any engine option set by the --engine parameter. "
+          "Runs complete (non-dynamic) PageRank for a fixed "
+          "number of iterations. Also overrides the iterations "
+          "option in the engine");
 
   if (!clopts.parse(argc, argv)){
     dc.cout() << "Error in parsing command line arguments." << std::endl;
@@ -306,11 +313,20 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
+  graphlab::timer timer;
+
   //load graph
   graph_type graph(dc, clopts);
   dc.cout() << "Loading graph in format: "<< format << std::endl;
   graph.load_format(graph_dir, format);
+  timer.start();
   graph.finalize();
+  const double ingress_time = timer.current_time();
+  dc.cout() << "Finalizing graph. Finished in "
+      << ingress_time << std::endl;
+
+  dc.cout() << "#vertices: " << graph.num_vertices()
+      << " #edges:" << graph.num_edges() << std::endl;
 
   time_t start, end;
   //initialize vertices
@@ -320,12 +336,14 @@ int main(int argc, char** argv) {
   else
     graph.transform_vertices(initialize_vertex_with_hash);
 
-  graphlab::omni_engine<one_hop> engine(dc, graph, exec_type, clopts);
+//  graphlab::omni_engine<one_hop> engine(dc, graph, exec_type, clopts);
+  graphlab::synchronous_engine<one_hop> engine(dc, graph, clopts);
 
   //main iteration
   size_t previous_count = 0;
   size_t diameter = 0;
-  for (size_t iter = 0; iter < 100; ++iter) {
+  timer.start();
+  for (size_t iter = 0; iter < ITERATIONS; ++iter) {
     engine.signal_all();
     engine.start();
 
@@ -348,10 +366,24 @@ int main(int argc, char** argv) {
     }
     previous_count = current_count;
   }
+  const double runtime = timer.current_time();
   time(&end);
 
   dc.cout() << "graph calculation time is " << (end - start) << " sec\n";
   dc.cout() << "The approximate diameter is " << diameter << "\n";
+
+  if(dc.procid() == 0) {
+    std::cout << graph.num_replicas() << "\t"
+        << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+        << graph.get_edge_balance() << "\t"
+        << graph.get_vertex_balance() << "\t"
+        << ingress_time << "\t"
+        << runtime << "\t"
+//        << engine.get_exec_time() << "\t"
+//        << engine.get_one_itr_time() << "\t"
+//        << engine.get_compute_balance() << "\t"
+        << std::endl;
+  }
 
   graphlab::mpi_tools::finalize();
 
