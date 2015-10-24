@@ -313,76 +313,114 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-  graphlab::timer timer;
+  int ntrials = 20;
+  int trial_results1[20];
+  double trial_results2[20][7];
+  for(int i = 0; i < ntrials; i++) {
+    graphlab::timer timer;
 
-  //load graph
-  graph_type graph(dc, clopts);
-  dc.cout() << "Loading graph in format: "<< format << std::endl;
-  graph.load_format(graph_dir, format);
-  timer.start();
-  graph.finalize();
-  const double ingress_time = timer.current_time();
-  dc.cout() << "Finalizing graph. Finished in "
-      << ingress_time << std::endl;
+    //load graph
+    graph_type graph(dc, clopts);
+    dc.cout() << "Loading graph in format: " << format << std::endl;
+    graph.load_format(graph_dir, format);
+    timer.start();
+    graph.finalize();
+    const double ingress_time = timer.current_time();
+    dc.cout() << "Finalizing graph. Finished in "
+        << ingress_time << std::endl;
 
-  dc.cout() << "#vertices: " << graph.num_vertices()
-      << " #edges:" << graph.num_edges() << std::endl;
+    dc.cout() << "#vertices: " << graph.num_vertices()
+        << " #edges:" << graph.num_edges() << std::endl;
 
-  time_t start, end;
-  //initialize vertices
-  time(&start);
-  if (use_sketch == false)
-    graph.transform_vertices(initialize_vertex);
-  else
-    graph.transform_vertices(initialize_vertex_with_hash);
-
-//  graphlab::omni_engine<one_hop> engine(dc, graph, exec_type, clopts);
-  graphlab::synchronous_engine<one_hop> engine(dc, graph, clopts);
-
-  //main iteration
-  size_t previous_count = 0;
-  size_t diameter = 0;
-  timer.start();
-  for (size_t iter = 0; iter < ITERATIONS; ++iter) {
-    engine.signal_all();
-    engine.start();
-
-    graph.transform_vertices(copy_bitmasks);
-
-    size_t current_count = 0;
+    time_t start, end;
+    //initialize vertices
+    time(&start);
     if (use_sketch == false)
-      current_count = graph.map_reduce_vertices<size_t>(absolute_vertex_data);
+      graph.transform_vertices(initialize_vertex);
     else
-      current_count = graph.map_reduce_vertices<size_t>(
-          absolute_vertex_data_with_hash);
-    dc.cout() << iter + 1 << "-th hop: " << current_count
-        << " vertex pairs are reached\n";
-    if (iter > 0
-        && (float) current_count
-            < (float) previous_count * (1.0 + termination_criteria)) {
-      diameter = iter;
-      dc.cout() << "converge\n";
-      break;
-    }
-    previous_count = current_count;
-  }
-  const double runtime = timer.current_time();
-  time(&end);
+      graph.transform_vertices(initialize_vertex_with_hash);
 
-  dc.cout() << "graph calculation time is " << (end - start) << " sec\n";
-  dc.cout() << "The approximate diameter is " << diameter << "\n";
+    //  graphlab::omni_engine<one_hop> engine(dc, graph, exec_type, clopts);
+    graphlab::synchronous_engine<one_hop> engine(dc, graph, clopts);
+
+    //main iteration
+    size_t previous_count = 0;
+    size_t diameter = 0;
+    timer.start();
+    for (size_t iter = 0; iter < ITERATIONS; ++iter) {
+      engine.signal_all();
+      engine.start();
+
+      graph.transform_vertices(copy_bitmasks);
+
+      size_t current_count = 0;
+      if (use_sketch == false)
+        current_count = graph.map_reduce_vertices<size_t>(absolute_vertex_data);
+      else
+        current_count = graph.map_reduce_vertices<size_t>(
+            absolute_vertex_data_with_hash);
+      dc.cout() << iter + 1 << "-th hop: " << current_count
+          << " vertex pairs are reached\n";
+      if (iter > 0
+          && (float) current_count
+          < (float) previous_count * (1.0 + termination_criteria)) {
+        diameter = iter;
+        dc.cout() << "converge\n";
+        break;
+      }
+      previous_count = current_count;
+    }
+    const double runtime = timer.current_time();
+    time(&end);
+
+    dc.cout() << "graph calculation time is " << (end - start) << " sec\n";
+    dc.cout() << "The approximate diameter is " << diameter << "\n";
+
+    //  if(dc.procid() == 0) {
+    //    std::cout << graph.num_replicas() << "\t"
+    //        << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+    //        << graph.get_edge_balance() << "\t"
+    //        << graph.get_vertex_balance() << "\t"
+    //        << ingress_time << "\t"
+    //        << runtime << "\t"
+    //        << engine.get_exec_time() << "\t"
+    //        << engine.get_one_itr_time() << "\t"
+    //        << engine.get_compute_balance() << "\t"
+    //        << std::endl;
+    //  }
+    if(dc.procid() == 0) {
+      std::cout << graph.num_replicas() << "\t"
+          << (double) graph.num_replicas() / graph.num_vertices() << "\t"
+          << graph.get_edge_balance() << "\t"
+          << graph.get_vertex_balance() << "\t"
+          << ingress_time << "\t"
+          << engine.get_exec_time() << "\t"
+          << engine.get_one_itr_time() << "\t"
+          << engine.get_compute_balance() << "\t"
+          << std::endl;
+      trial_results1[i] = graph.num_replicas();
+      trial_results2[i][0] = (double) graph.num_replicas() / graph.num_vertices();
+      trial_results2[i][1] = graph.get_edge_balance();
+      trial_results2[i][2] = graph.get_vertex_balance();
+      trial_results2[i][3] = ingress_time;
+      trial_results2[i][4] = engine.get_exec_time();
+      trial_results2[i][5] = engine.get_one_itr_time();
+      trial_results2[i][6] = engine.get_compute_balance();
+    }
+  }
 
   if(dc.procid() == 0) {
-    std::cout << graph.num_replicas() << "\t"
-        << (double)graph.num_replicas()/graph.num_vertices() << "\t"
-        << graph.get_edge_balance() << "\t"
-        << graph.get_vertex_balance() << "\t"
-        << ingress_time << "\t"
-        << runtime << "\t"
-//        << engine.get_exec_time() << "\t"
-//        << engine.get_one_itr_time() << "\t"
-//        << engine.get_compute_balance() << "\t"
-        << std::endl;
+    for (int i = 0; i < ntrials; i++) {
+      std::cout << trial_results1[i] << "\t"
+          << trial_results2[i][0] << "\t"
+          << trial_results2[i][1] << "\t"
+          << trial_results2[i][2] << "\t"
+          << trial_results2[i][3] << "\t"
+          << trial_results2[i][4] << "\t"
+          << trial_results2[i][5] << "\t"
+          << trial_results2[i][6] << "\t"
+          << std::endl;
+    }
   }
 
   graphlab::mpi_tools::finalize();

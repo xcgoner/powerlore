@@ -66,6 +66,17 @@ namespace graphlab {
 
         return candidates[graph_hash::hash_edge(edge_pair) % (candidates.size())];
       };
+	  
+	  
+	  /** Random2 assign (source, target) to a machine p in {0, ... numprocs-1} */
+      procid_t edge_to_proc_random2 (const vertex_id_type source, 
+          const vertex_id_type target,
+          size_t numprocs) {
+        typedef std::pair<vertex_id_type, vertex_id_type> edge_pair_type;
+        const edge_pair_type edge_pair(std::min(source, target), 
+            std::max(source, target));
+        return graph_hash::hash_edge2(edge_pair) % (numprocs);
+      };
 
 
       /** Greedy assign (source, target) to a machine using: 

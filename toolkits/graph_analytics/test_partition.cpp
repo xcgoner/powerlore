@@ -236,71 +236,111 @@ int main(int argc, char** argv) {
     clopts.get_engine_args().set_option("sched_allv", true);
   }
 
-  // Build the graph ----------------------------------------------------------
-  dc.cout() << "Loading graph." << std::endl;
-  graphlab::timer timer; 
-  graph_type graph(dc, clopts);
-  if(powerlaw > 0) { // make a synthetic graph
-    dc.cout() << "Loading synthetic Powerlaw graph." << std::endl;
-    graph.load_synthetic_powerlaw(powerlaw, alpha, beta, 100000000);
-  }
-  else if (graph_dir.length() > 0) { // Load the graph from a file
-      if(dc.procid() == 24)
-    std::cout << "Loading graph in format: "<< format << std::endl;
-    graph.load_format(graph_dir, format);
-  }
-  else {
-    dc.cout() << "graph or powerlaw option must be specified" << std::endl;
-    clopts.print_description();
-    return 0;
-  }
-  dc.cout() << "Loading graph. Finished in " 
-    << timer.current_time() << std::endl;
-  // must call finalize before querying the graph
-  dc.cout() << "Finalizing graph." << std::endl;
-  timer.start();
-  graph.finalize();
-  const double ingress_time = timer.current_time();
-  dc.cout() << "Finalizing graph. Finished in " 
-    << ingress_time << std::endl;
+  int ntrials = 1;
+  int trial_results1[20];
+  double trial_results2[20][7];
+  for(int i = 0; i < ntrials; i++)
+  {
+    // Build the graph ----------------------------------------------------------
+    dc.cout() << "Loading graph." << std::endl;
+    graph_type graph(dc, clopts);
+    if(powerlaw > 0) { // make a synthetic graph
+      dc.cout() << "Loading synthetic Powerlaw graph." << std::endl;
+      graph.load_synthetic_powerlaw(powerlaw, alpha, beta, 100000000);
+    }
+    else if (graph_dir.length() > 0) { // Load the graph from a file
+        if(dc.procid() == 24)
+      std::cout << "Loading graph in format: "<< format << std::endl;
+      graph.load_format(graph_dir, format);
+    }
+    else {
+      dc.cout() << "graph or powerlaw option must be specified" << std::endl;
+      clopts.print_description();
+      return 0;
+    }
 
-  dc.cout() << "#vertices: " << graph.num_vertices()
-            << " #edges:" << graph.num_edges() << std::endl;
 
-//  graphlab::mpi_tools::finalize();
-//  return EXIT_SUCCESS;
+//    dc.cout() << "Loading graph. Finished in "
+//      << timer.current_time() << std::endl;
+//    // must call finalize before querying the graph
+//    dc.cout() << "Finalizing graph." << std::endl;
+    graphlab::timer timer;
+    timer.start();
+    graph.finalize();
+    const double ingress_time = timer.current_time();
+    dc.cout() << "Finalizing graph. Finished in "
+      << ingress_time << std::endl;
 
-  // Initialize the vertex data
-  graph.transform_vertices(init_vertex);
+    dc.cout() << "#vertices: " << graph.num_vertices()
+              << " #edges:" << graph.num_edges() << std::endl;
 
-  // Running The Engine -------------------------------------------------------
-  graphlab::synchronous_engine<pagerank> engine(dc, graph, clopts);
-  engine.signal_all();
-  timer.start();
-  engine.start();
-  const double runtime = timer.current_time();
-//  dc.cout() << "----------------------------------------------------------"
-//            << std::endl
-//            << "Final Runtime (seconds):   " << runtime
-//            << std::endl
-//            << "Updates executed: " << engine.num_updates() << std::endl
-//            << "Update Rate (updates/second): "
-//            << engine.num_updates() / runtime << std::endl;
+  //  graphlab::mpi_tools::finalize();
+  //  return EXIT_SUCCESS;
 
-  const double total_rank = graph.map_reduce_vertices<double>(map_rank);
-//  if(dc.procid() == 0)
-//    std::cout << "Total rank: " << total_rank << std::endl;
+    // Initialize the vertex data
+    graph.transform_vertices(init_vertex);
 
-  // Save the final graph -----------------------------------------------------
-  if (saveprefix != "") {
-    graph.save(saveprefix, pagerank_writer(),
-               false,    // do not gzip
-               true,     // save vertices
-               false);   // do not save edges
-  }
+    // Running The Engine -------------------------------------------------------
+    graphlab::synchronous_engine<pagerank> engine(dc, graph, clopts);
+    engine.signal_all();
+    timer.start();
+    engine.start();
+    const double runtime = timer.current_time();
+  //  dc.cout() << "----------------------------------------------------------"
+  //            << std::endl
+  //            << "Final Runtime (seconds):   " << runtime
+  //            << std::endl
+  //            << "Updates executed: " << engine.num_updates() << std::endl
+  //            << "Update Rate (updates/second): "
+  //            << engine.num_updates() / runtime << std::endl;
 
-  if(dc.procid() == 0) {
-        std::cout << graph.num_replicas() << "\t"
+    const double total_rank = graph.map_reduce_vertices<double>(map_rank);
+  //  if(dc.procid() == 0)
+  //    std::cout << "Total rank: " << total_rank << std::endl;
+
+    // Save the final graph -----------------------------------------------------
+    if (saveprefix != "") {
+      graph.save(saveprefix, pagerank_writer(),
+                 false,    // do not gzip
+                 true,     // save vertices
+                 false);   // do not save edges
+    }
+
+    if(dc.procid() == 0) {
+          std::cout << graph.num_replicas() << "\t"
+                    << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+                    << graph.get_edge_balance() << "\t"
+                    << graph.get_vertex_balance() << "\t"
+                    << ingress_time << "\t"
+                    << engine.get_exec_time() << "\t"
+                    << engine.get_one_itr_time() << "\t"
+                    << engine.get_compute_balance() << "\t"
+                    << std::endl;
+          trial_results1[i] = graph.num_replicas();
+          trial_results2[i][0] = (double)graph.num_replicas()/graph.num_vertices();
+          trial_results2[i][1] = graph.get_edge_balance();
+          trial_results2[i][2] = graph.get_vertex_balance() ;
+          trial_results2[i][3] = ingress_time;
+          trial_results2[i][4] = engine.get_exec_time();
+          trial_results2[i][5] = engine.get_one_itr_time();
+          trial_results2[i][6] = engine.get_compute_balance();
+
+          if(result_file != "") {
+              std::cout << "saving the result to " << result_file << std::endl;
+              std::ofstream fout(result_file.c_str(), std::ios::app);
+              if(powerlaw > 0) {
+                  fout << "powerlaw synthetic: " << powerlaw << "\t"
+                      << alpha << "\t" << beta << "\t" << dc.numprocs() << std::endl;
+              }
+              else {
+                  fout << "real-world graph: " << graph_dir << "\t"
+                      << graph.num_vertices() << "\t" << graph.num_edges()
+                      << "\t" << dc.numprocs() << std::endl;
+              }
+              std::string ingress_method = "";
+              clopts.get_graph_args().get_option("ingress", ingress_method);
+              fout << ingress_method << "\t";
+              fout << graph.num_replicas() << "\t"
                   << (double)graph.num_replicas()/graph.num_vertices() << "\t"
                   << graph.get_edge_balance() << "\t"
                   << graph.get_vertex_balance() << "\t"
@@ -309,33 +349,24 @@ int main(int argc, char** argv) {
                   << engine.get_one_itr_time() << "\t"
                   << engine.get_compute_balance() << "\t"
                   << std::endl;
-        if(result_file != "") {
-            std::cout << "saving the result to " << result_file << std::endl;
-            std::ofstream fout(result_file.c_str(), std::ios::app);
-            if(powerlaw > 0) {
-                fout << "powerlaw synthetic: " << powerlaw << "\t"
-                    << alpha << "\t" << beta << "\t" << dc.numprocs() << std::endl;
-            }
-            else {
-                fout << "real-world graph: " << graph_dir << "\t"
-                    << graph.num_vertices() << "\t" << graph.num_edges()
-                    << "\t" << dc.numprocs() << std::endl;
-            }
-            std::string ingress_method = "";
-            clopts.get_graph_args().get_option("ingress", ingress_method);
-            fout << ingress_method << "\t";
-            fout << graph.num_replicas() << "\t"
-                << (double)graph.num_replicas()/graph.num_vertices() << "\t"
-                << graph.get_edge_balance() << "\t"
-                << graph.get_vertex_balance() << "\t"
-                << ingress_time << "\t"
-                << engine.get_exec_time() << "\t"
-                << engine.get_one_itr_time() << "\t"
-                << engine.get_compute_balance() << "\t"
-                << std::endl;
-            fout.close();
-        }
+              fout.close();
+          }
+      }
+  }
+
+  if(dc.procid() == 0) {
+    for (int i = 0; i < ntrials; i++) {
+      std::cout << trial_results1[i] << "\t"
+          << trial_results2[i][0] << "\t"
+          << trial_results2[i][1] << "\t"
+          << trial_results2[i][2] << "\t"
+          << trial_results2[i][3] << "\t"
+          << trial_results2[i][4] << "\t"
+          << trial_results2[i][5] << "\t"
+          << trial_results2[i][6] << "\t"
+          << std::endl;
     }
+  }
 
   // Tear-down communication layer and quit -----------------------------------
   graphlab::mpi_tools::finalize();

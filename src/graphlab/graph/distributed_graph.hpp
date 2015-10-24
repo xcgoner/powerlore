@@ -79,6 +79,8 @@
 #include <graphlab/graph/ingress/distributed_random_ingress.hpp>
 #include <graphlab/graph/ingress/distributed_identity_ingress.hpp>
 
+#include <graphlab/graph/ingress/distributed_random2_ingress.hpp>
+
 #include <graphlab/graph/ingress/sharding_constraint.hpp>
 #include <graphlab/graph/ingress/distributed_constrained_random_ingress.hpp>
 
@@ -416,6 +418,7 @@ namespace graphlab {
 
     // Make friends with Ingress classes
     friend class distributed_random_ingress<VertexData, EdgeData>;
+	friend class distributed_random2_ingress<VertexData, EdgeData>;
     friend class distributed_identity_ingress<VertexData, EdgeData>;
     friend class distributed_oblivious_ingress<VertexData, EdgeData>;
     friend class distributed_constrained_random_ingress<VertexData, EdgeData>;
@@ -3338,6 +3341,9 @@ namespace graphlab {
       } else if  (method == "random") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use random ingress" << std::endl;
         ingress_ptr = new distributed_random_ingress<VertexData, EdgeData>(rpc.dc(), *this); 
+	  } else if  (method == "random2") {
+        if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use random2 ingress" << std::endl;
+        ingress_ptr = new distributed_random2_ingress<VertexData, EdgeData>(rpc.dc(), *this); 
       } else if (method == "grid") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use grid ingress" << std::endl;
         ingress_ptr = new distributed_constrained_random_ingress<VertexData, EdgeData>(rpc.dc(), *this, "grid");
