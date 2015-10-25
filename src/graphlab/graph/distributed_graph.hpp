@@ -685,6 +685,9 @@ namespace graphlab {
       size_t bufsize = 50000;
       bool usehash = false;
       bool userecent = false;
+	  
+	  // random seed
+	  uint32_t seed = 5;
 
       std::vector<std::string> keys = opts.get_graph_args().get_option_keys();
       foreach(std::string opt, keys) {
@@ -749,12 +752,17 @@ namespace graphlab {
           if (rpc.procid() == 0)
             logstream(LOG_EMPH) << "Graph Option: userecent = "
               << userecent << std::endl;
+		} else if (opt == "seed") {
+          opts.get_graph_args().get_option("seed", seed);
+          if (rpc.procid() == 0)
+            logstream(LOG_EMPH) << "Graph Option: seed = "
+              << seed << std::endl;
         } else {
           logstream(LOG_ERROR) << "Unexpected Graph Option: " << opt << std::endl;
         }
       }
       set_ingress_method(ingress_method, bufsize, usehash, userecent, favorite,
-        threshold, nedges, nverts, interval);
+        threshold, nedges, nverts, interval, seed);
     }
 
   public:
@@ -3332,7 +3340,7 @@ namespace graphlab {
         size_t bufsize = 50000, bool usehash = false, bool userecent = false, 
         std::string favorite = "source",
         size_t threshold = 100, size_t nedges = 0, size_t nverts = 0,
-        size_t interval = std::numeric_limits<size_t>::max()) {
+        size_t interval = std::numeric_limits<size_t>::max(), const uint32_t seed = 5) {
       if(ingress_ptr != NULL) { delete ingress_ptr; ingress_ptr = NULL; }
       if (method == "oblivious") {
         if (rpc.procid() == 0) logstream(LOG_EMPH) << "Use oblivious ingress, usehash: " << usehash
@@ -3340,13 +3348,13 @@ namespace graphlab {
         ingress_ptr = new distributed_oblivious_ingress<VertexData, EdgeData>(rpc.dc(), *this, usehash, userecent);
       } else if  (method == "random") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use random ingress" << std::endl;
-        ingress_ptr = new distributed_random_ingress<VertexData, EdgeData>(rpc.dc(), *this); 
+        ingress_ptr = new distributed_random_ingress<VertexData, EdgeData>(rpc.dc(), *this, seed); 
 	  } else if  (method == "random2") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use random2 ingress" << std::endl;
-        ingress_ptr = new distributed_random2_ingress<VertexData, EdgeData>(rpc.dc(), *this); 
+        ingress_ptr = new distributed_random2_ingress<VertexData, EdgeData>(rpc.dc(), *this, seed); 
       } else if (method == "grid") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use grid ingress" << std::endl;
-        ingress_ptr = new distributed_constrained_random_ingress<VertexData, EdgeData>(rpc.dc(), *this, "grid");
+        ingress_ptr = new distributed_constrained_random_ingress<VertexData, EdgeData>(rpc.dc(), *this, "grid", seed);
       } else if (method == "pds") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use pds ingress" << std::endl;
         ingress_ptr = new distributed_constrained_random_ingress<VertexData, EdgeData>(rpc.dc(), *this, "pds");
@@ -3363,7 +3371,7 @@ namespace graphlab {
         ingress_ptr = new distributed_bipartite_aweto_ingress<VertexData, EdgeData>(rpc.dc(), *this, favorite);
       } else if (method == "hybrid") {
         if (rpc.procid() == 0) logstream(LOG_EMPH) << "Use hybrid ingress" << std::endl;
-        ingress_ptr = new distributed_hybrid_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold);
+        ingress_ptr = new distributed_hybrid_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold, seed);
         set_cuts_type(HYBRID_CUTS);
       } else if (method == "hybrid_ginger") {
         if (rpc.procid() == 0) logstream(LOG_EMPH) << "Use hybrid ginger ingress" << std::endl;
@@ -3372,7 +3380,7 @@ namespace graphlab {
         set_cuts_type(HYBRID_GINGER_CUTS);
       } else if  (method == "libra") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use libra ingress" << std::endl;
-        ingress_ptr = new distributed_libra_ingress<VertexData, EdgeData>(rpc.dc(), *this);
+        ingress_ptr = new distributed_libra_ingress<VertexData, EdgeData>(rpc.dc(), *this, seed);
       } else if  (method == "zodiac") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use zodiac ingress" << std::endl;
         ingress_ptr = new distributed_zodiac_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold, interval);

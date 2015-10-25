@@ -48,13 +48,17 @@ namespace graphlab {
     typedef VertexData vertex_data_type;
     /// The type of the edge data stored in the graph 
     typedef EdgeData   edge_data_type;
+	
+	// random seed
+	uint32_t rseed;
 
 
     typedef distributed_ingress_base<VertexData, EdgeData> base_type;
    
   public:
-    distributed_random2_ingress(distributed_control& dc, graph_type& graph) :
+    distributed_random2_ingress(distributed_control& dc, graph_type& graph, const uint32_t seed = 5) :
     base_type(dc, graph) {
+		rseed = seed;
     } // end of constructor
 
     ~distributed_random2_ingress() { }
@@ -63,7 +67,7 @@ namespace graphlab {
     void add_edge(vertex_id_type source, vertex_id_type target,
                   const EdgeData& edata) {
       typedef typename base_type::edge_buffer_record edge_buffer_record;
-      const procid_t owning_proc = base_type::edge_decision.edge_to_proc_random2(source, target, base_type::rpc.numprocs());
+      const procid_t owning_proc = base_type::edge_decision.edge_to_proc_random2(source, target, base_type::rpc.numprocs(), rseed);
       const edge_buffer_record record(source, target, edata);
       base_type::edge_exchange.send(owning_proc, record);
     } // end of add edge

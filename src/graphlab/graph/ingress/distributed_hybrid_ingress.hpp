@@ -77,6 +77,9 @@ namespace graphlab {
     size_t threshold;
 
     bool standalone;
+	
+	// random seed
+	uint32_t rseed;
 
     typedef typename base_type::edge_buffer_record edge_buffer_record;
     typedef typename buffered_exchange<edge_buffer_record>::buffer_type 
@@ -98,7 +101,7 @@ namespace graphlab {
 
   public:
     distributed_hybrid_ingress(distributed_control& dc, 
-        graph_type& graph, size_t threshold = 100) :
+        graph_type& graph, size_t threshold = 100, const uint32_t seed = 5) :
         base_type(dc, graph), hybrid_rpc(dc, this), 
         graph(graph), threshold(threshold),
 #ifdef _OPENMP
@@ -112,6 +115,8 @@ namespace graphlab {
       /* fast pass for standalone case. */
       standalone = hybrid_rpc.numprocs() == 1;
       hybrid_rpc.barrier();
+	  
+	  rseed = seed;
     } // end of constructor
 
     ~distributed_hybrid_ingress() { }
@@ -124,7 +129,7 @@ namespace graphlab {
                   const EdgeData& edata) {
       const edge_buffer_record record(source, target, edata);      
       const procid_t owning_proc = standalone ? 0 :
-        graph_hash::hash_vertex(target) % hybrid_rpc.numprocs();
+        graph_hash::hash_vertex(target, rseed) % hybrid_rpc.numprocs();
 #ifdef _OPENMP
       hybrid_edge_exchange.send(owning_proc, record, omp_get_thread_num());
 #else
@@ -137,7 +142,7 @@ namespace graphlab {
     void add_vertex(vertex_id_type vid, const VertexData& vdata) { 
       const vertex_buffer_record record(vid, vdata);
       const procid_t owning_proc = standalone ? 0 :
-        graph_hash::hash_vertex(vid) % hybrid_rpc.numprocs();        
+        graph_hash::hash_vertex(vid, rseed) % hybrid_rpc.numprocs();        
 #ifdef _OPENMP
       hybrid_vertex_exchange.send(owning_proc, record, omp_get_thread_num());
 #else
@@ -229,7 +234,7 @@ namespace graphlab {
             edge_buffer_record& rec = hybrid_edges[i];
             if (in_degree_set[rec.target] > threshold) {
               const procid_t source_owner_proc = 
-                graph_hash::hash_vertex(rec.source) % nprocs;
+                graph_hash::hash_vertex(rec.source, rseed) % nprocs;
               if(source_owner_proc != l_procid){
                 // re-send the edge of high-degree vertices according to source
                 hybrid_edge_exchange.send(source_owner_proc, rec);
@@ -553,7 +558,7 @@ namespace graphlab {
           if (standalone)
             vrec.owner = 0;
           else
-            vrec.owner = graph_hash::hash_vertex(pair.first) % nprocs;
+            vrec.owner = graph_hash::hash_vertex(pair.first, rseed) % nprocs;
         }
         ASSERT_EQ(local_nverts, graph.local_graph.num_vertices());
         ASSERT_EQ(graph.lvid2record.size(), graph.local_graph.num_vertices());

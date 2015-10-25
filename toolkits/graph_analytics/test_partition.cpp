@@ -24,6 +24,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <time.h>
 
 #include <graphlab.hpp>
 // #include <graphlab/macros_def.hpp>
@@ -236,14 +237,23 @@ int main(int argc, char** argv) {
     clopts.get_engine_args().set_option("sched_allv", true);
   }
 
-  int ntrials = 1;
+  int ntrials = 5;
   int trial_results1[20];
   double trial_results2[20][7];
+  uint32_t seed_set[20] = {1492133106, 680965948, 2040586311, 73972395, 942196338, 819390547, 1643934785, 1707678784, 401305863, 1051761031, 956889080, 1387946621, 1523349375, 1620677309, 592759340, 1459650384, 1406812251, 349206043, 255545576, 1070228652};
   for(int i = 0; i < ntrials; i++)
   {
     // Build the graph ----------------------------------------------------------
     dc.cout() << "Loading graph." << std::endl;
+	
+	// random seed
+	// dc.cout() << seed_set[i] << std::endl;
+	clopts.get_graph_args().set_option("seed", seed_set[i]);
+	
+	// clopts.print();
+	
     graph_type graph(dc, clopts);
+	
     if(powerlaw > 0) { // make a synthetic graph
       dc.cout() << "Loading synthetic Powerlaw graph." << std::endl;
       graph.load_synthetic_powerlaw(powerlaw, alpha, beta, 100000000);

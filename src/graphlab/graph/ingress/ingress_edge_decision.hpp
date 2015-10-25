@@ -49,33 +49,33 @@ namespace graphlab {
       /** Random assign (source, target) to a machine p in {0, ... numprocs-1} */
       procid_t edge_to_proc_random (const vertex_id_type source, 
           const vertex_id_type target,
-          size_t numprocs) {
+          size_t numprocs, const uint32_t seed = 5) {
         typedef std::pair<vertex_id_type, vertex_id_type> edge_pair_type;
         const edge_pair_type edge_pair(std::min(source, target), 
             std::max(source, target));
-        return graph_hash::hash_edge(edge_pair) % (numprocs);
+        return graph_hash::hash_edge(edge_pair, seed) % (numprocs);
       };
 
       /** Random assign (source, target) to a machine p in a list of candidates */
       procid_t edge_to_proc_random (const vertex_id_type source, 
           const vertex_id_type target,
-          const std::vector<procid_t> & candidates) {
+          const std::vector<procid_t> & candidates, const uint32_t seed = 5) {
         typedef std::pair<vertex_id_type, vertex_id_type> edge_pair_type;
         const edge_pair_type edge_pair(std::min(source, target), 
             std::max(source, target));
 
-        return candidates[graph_hash::hash_edge(edge_pair) % (candidates.size())];
+        return candidates[graph_hash::hash_edge(edge_pair, seed) % (candidates.size())];
       };
 	  
 	  
 	  /** Random2 assign (source, target) to a machine p in {0, ... numprocs-1} */
       procid_t edge_to_proc_random2 (const vertex_id_type source, 
           const vertex_id_type target,
-          size_t numprocs) {
+          size_t numprocs, const uint32_t seed = 5) {
         typedef std::pair<vertex_id_type, vertex_id_type> edge_pair_type;
         const edge_pair_type edge_pair(std::min(source, target), 
             std::max(source, target));
-        return graph_hash::hash_edge2(edge_pair) % (numprocs);
+        return graph_hash::hash_edge2(edge_pair, seed) % (numprocs);
       };
 
 

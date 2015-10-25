@@ -56,12 +56,16 @@ namespace graphlab {
 
     sharding_constraint* constraint;
     boost::hash<vertex_id_type> hashvid;
+	
+	// random seed
+	uint32_t rseed;
 
   public:
     distributed_constrained_random_ingress(distributed_control& dc, graph_type& graph,
-                                           const std::string& method) :
+                                           const std::string& method, const uint32_t seed = 5) :
     base_type(dc, graph) {
       constraint = new sharding_constraint(dc.numprocs(), method);
+	  rseed = seed;
     } // end of constructor
 
     ~distributed_constrained_random_ingress() { 
@@ -73,8 +77,8 @@ namespace graphlab {
                   const EdgeData& edata) {
       typedef typename base_type::edge_buffer_record edge_buffer_record;
 
-      const std::vector<procid_t>& candidates = constraint->get_joint_neighbors(graph_hash::hash_vertex(source) % base_type::rpc.numprocs(),
-                                                                                graph_hash::hash_vertex(target) % base_type::rpc.numprocs());
+      const std::vector<procid_t>& candidates = constraint->get_joint_neighbors(graph_hash::hash_vertex(source, rseed) % base_type::rpc.numprocs(),
+                                                                                graph_hash::hash_vertex(target, rseed) % base_type::rpc.numprocs());
 
       const procid_t owning_proc = 
           base_type::edge_decision.edge_to_proc_random(source, target, candidates);

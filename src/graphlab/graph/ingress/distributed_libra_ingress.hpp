@@ -69,6 +69,9 @@ namespace graphlab {
     graph_type& graph;
 
     bool standalone;
+	
+	// random seed
+	uint32_t rseed;
 
 //    typedef typename base_type::edge_buffer_record edge_buffer_record;
     struct edge_buffer_record {
@@ -110,7 +113,7 @@ namespace graphlab {
     typedef typename base_type::vertex_negotiator_record vertex_negotiator_record;
    
   public:
-    distributed_libra_ingress(distributed_control& dc, graph_type& graph) :
+    distributed_libra_ingress(distributed_control& dc, graph_type& graph, const uint32_t seed = 5) :
     base_type(dc, graph), rpc(dc, this),
     graph(graph),
 #ifdef _OPENMP
@@ -125,6 +128,8 @@ namespace graphlab {
       /* fast pass for standalone case. */
       standalone = rpc.numprocs() == 1;
       rpc.barrier();
+	  
+	  rseed = seed;
     } // end of constructor
 
     ~distributed_libra_ingress() { }
@@ -137,10 +142,10 @@ namespace graphlab {
 //      edge_exchange.send(owning_proc, record);
       // assign to source
       const procid_t source_owning_proc = standalone ? 0 :
-                  graph_hash::hash_vertex(source) % rpc.numprocs();
+                  graph_hash::hash_vertex(source, rseed) % rpc.numprocs();
       // assign to source
       const procid_t target_owning_proc = standalone ? 0 :
-                  graph_hash::hash_vertex(target) % rpc.numprocs();
+                  graph_hash::hash_vertex(target, rseed) % rpc.numprocs();
       if(source_owning_proc == target_owning_proc) {
           const edge_buffer_record record(source, target, edata, 0);
           edge_exchange.send(source_owning_proc, record);
@@ -248,14 +253,14 @@ namespace graphlab {
                 degree_set[rec.source]++;
                 if(rec.hash_flag == 1) {
                     // this proc is the source vertex hashed to
-                    const procid_t owning_proc = graph_hash::hash_vertex(rec.target) % rpc.numprocs();
+                    const procid_t owning_proc = graph_hash::hash_vertex(rec.target, rseed) % rpc.numprocs();
                     if(degree_exchange_set[owning_proc].size() < (rec.source + 1))
                       degree_exchange_set[owning_proc].resize(rec.source + 1);
                     degree_exchange_set[owning_proc][rec.source] = true;
                 }
                 else if(rec.hash_flag == 2) {
                     // this proc is the target vertex hashed to
-                    const procid_t owning_proc = graph_hash::hash_vertex(rec.source) % rpc.numprocs();
+                    const procid_t owning_proc = graph_hash::hash_vertex(rec.source, rseed) % rpc.numprocs();
                     if(degree_exchange_set[owning_proc].size() < (rec.target + 1))
                       degree_exchange_set[owning_proc].resize(rec.target + 1);
                     degree_exchange_set[owning_proc][rec.target] = true;
@@ -407,7 +412,7 @@ namespace graphlab {
         foreach(const vid2lvid_pair_type& pair, vid2lvid_buffer) {
             vertex_record& vrec = graph.lvid2record[pair.second];
             vrec.gvid = pair.first;
-            vrec.owner = graph_hash::hash_vertex(pair.first) % rpc.numprocs();
+            vrec.owner = graph_hash::hash_vertex(pair.first, rseed) % rpc.numprocs();
         }
         ASSERT_EQ(local_nverts, graph.local_graph.num_vertices());
         ASSERT_EQ(graph.lvid2record.size(), graph.local_graph.num_vertices());
