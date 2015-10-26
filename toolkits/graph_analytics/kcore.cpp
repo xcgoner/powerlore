@@ -58,6 +58,9 @@ typedef graphlab::distributed_graph<vertex_data_type,
 // The current K to compute
 size_t CURRENT_K;
 
+
+size_t ITERATIONS = 0;
+
 /*
  * The core K-core implementation.
  * The basic concept is simple.
@@ -224,6 +227,32 @@ int main(int argc, char** argv) {
                        "Compute the k-Core for k the range [kmin,kmax]");
   clopts.attach_option("savecores", savecores,
                        "If non-empty, will save tsv of each core with prefix [savecores].K.");
+	clopts.attach_option("iterations", ITERATIONS,
+                       "If set, will force the use of the synchronous engine"
+                       "overriding any engine option set by the --engine parameter. "
+                       "Runs complete (non-dynamic) PageRank for a fixed "
+                       "number of iterations. Also overrides the iterations "
+                       "option in the engine");
+	size_t powerlaw = 0;
+  clopts.attach_option("powerlaw", powerlaw,
+                       "Generate a synthetic powerlaw degree graph. ");
+  double alpha = 2.1, beta = 2.2;
+  clopts.attach_option("alpha", alpha,
+                         "Power-law constant for indegree ");
+  clopts.attach_option("beta", beta,
+                         "Power-law constant for outdegree ");
+  clopts.attach_option("iterations", ITERATIONS,
+                       "If set, will force the use of the synchronous engine"
+                       "overriding any engine option set by the --engine parameter. "
+                       "Runs complete (non-dynamic) PageRank for a fixed "
+                       "number of iterations. Also overrides the iterations "
+                       "option in the engine");
+  clopts.attach_option("use_delta", USE_DELTA_CACHE,
+                       "Use the delta cache to reduce time in gather.");
+  std::string result_file;
+  clopts.attach_option("result_file", result_file,
+                       "If set, will save the test result to the"
+                       "specific file");
 
   if(!clopts.parse(argc, argv)) return EXIT_FAILURE;
   if (prefix == "") {
@@ -241,66 +270,99 @@ int main(int argc, char** argv) {
     clopts.print_description();
     return EXIT_FAILURE;
   }
+  
   // Initialize control plane using mpi
   graphlab::mpi_tools::init(argc, argv);
   graphlab::distributed_control dc;
-  // load graph
-  graph_type graph(dc, clopts);
-  graph.load_format(prefix, format);
-
-  graphlab::timer ti;
-
-  ti.start();
-  graph.finalize();
-  const double ingress_time = ti.current_time();
-  dc.cout() << "Finalizing graph. Finished in "
-      << ingress_time << std::endl;
-  dc.cout() << "Number of vertices: " << graph.num_vertices() << std::endl
-            << "Number of edges:    " << graph.num_edges() << std::endl;
-
-  graphlab::synchronous_engine<k_core> engine(dc, graph, clopts);
-
-  // initialize the vertex data with the degree
-  graph.transform_vertices(initialize_vertex_values);
-
-  ti.start();
-  // for each K value
-  for (CURRENT_K = kmin; CURRENT_K <= kmax; CURRENT_K++) {
-    // signal all vertices with degree less than K
-    engine.map_reduce_vertices<graphlab::empty>(signal_vertices_at_k);
-    // recursively delete all vertices with degree less than K
-    engine.start();
-    // count the number of vertices and edges remaining
-    size_t numv = graph.map_reduce_vertices<size_t>(count_active_vertices);
-    size_t nume = graph.map_reduce_vertices<size_t>(double_count_active_edges) / 2;
-    if (numv == 0) break;
-    // Output the size of the graph
-    dc.cout() << "K=" << CURRENT_K << ":  #V = "
-              << numv << "   #E = " << nume << std::endl;
-
-    // Saves the result if requested
-    if (savecores != "") {
-      graph.save(savecores + "." + graphlab::tostr(CURRENT_K) + ".",
-                 save_core_at_k(),
-                 false, /* no compression */ 
-                 false, /* do not save vertex */
-                 true, /* save edge */ 
-                 clopts.get_ncpus()); /* one file per machine */
-    }
+  
+  if (ITERATIONS) {
+    // make sure this is the synchronous engine
+    dc.cout() << "--iterations set. Forcing Synchronous engine, and running "
+              << "for " << ITERATIONS << " iterations." << std::endl;
+    //clopts.get_engine_args().set_option("type", "synchronous");
+    clopts.get_engine_args().set_option("max_iterations", ITERATIONS);
+    clopts.get_engine_args().set_option("sched_allv", true);
   }
-  const double runtime = ti.current_time();
+  
+  int ntrials = 5;
+  int trial_results1[20];
+  double trial_results2[20][8];
+  uint32_t seed_set[20] = {1492133106, 680965948, 2040586311, 73972395, 942196338, 819390547, 1643934785, 1707678784, 401305863, 1051761031, 956889080, 1387946621, 1523349375, 1620677309, 592759340, 1459650384, 1406812251, 349206043, 255545576, 1070228652};
+  for(int i = 0; i < ntrials; i++)
+  {
+  
+	  // load graph
+	  graph_type graph(dc, clopts);
+	  
+	  if(powerlaw > 0) { // make a synthetic graph
+		  dc.cout() << "Loading synthetic Powerlaw graph." << std::endl;
+		  graph.load_synthetic_powerlaw(powerlaw, alpha, beta, 100000000);
+		}
+		else if (prefix.length() > 0) { // Load the graph from a file
+			if(dc.procid() == 24)
+		  std::cout << "Loading graph in format: "<< format << std::endl;
+		  graph.load_format(prefix, format);
+		}
+		else {
+		  dc.cout() << "graph or powerlaw option must be specified" << std::endl;
+		  clopts.print_description();
+		  return 0;
+		}
 
-  if(dc.procid() == 0) {
-    std::cout << graph.num_replicas() << "\t"
-        << (double)graph.num_replicas()/graph.num_vertices() << "\t"
-        << graph.get_edge_balance() << "\t"
-        << graph.get_vertex_balance() << "\t"
-        << ingress_time << "\t"
-        << runtime << "\t"
-//        << engine.get_exec_time() << "\t"
-//        << engine.get_one_itr_time() << "\t"
-//        << engine.get_compute_balance() << "\t"
-        << std::endl;
+	  graphlab::timer timer;
+	  timer.start();
+	  graph.finalize();
+	  const double ingress_time = timer.current_time();
+	  dc.cout() << "Finalizing graph. Finished in "
+		  << ingress_time << std::endl;
+	  dc.cout() << "Number of vertices: " << graph.num_vertices() << std::endl
+				<< "Number of edges:    " << graph.num_edges() << std::endl;
+
+	  graphlab::synchronous_engine<k_core> engine(dc, graph, clopts);
+
+	  // initialize the vertex data with the degree
+	  graph.transform_vertices(initialize_vertex_values);
+
+	  timer.start();
+	  // for each K value
+	  for (CURRENT_K = kmin; CURRENT_K <= kmax; CURRENT_K++) {
+		// signal all vertices with degree less than K
+		engine.map_reduce_vertices<graphlab::empty>(signal_vertices_at_k);
+		// recursively delete all vertices with degree less than K
+		engine.start();
+		// count the number of vertices and edges remaining
+		size_t numv = graph.map_reduce_vertices<size_t>(count_active_vertices);
+		size_t nume = graph.map_reduce_vertices<size_t>(double_count_active_edges) / 2;
+		if (numv == 0) break;
+		// Output the size of the graph
+		dc.cout() << "K=" << CURRENT_K << ":  #V = "
+				  << numv << "   #E = " << nume << std::endl;
+
+		// Saves the result if requested
+		if (savecores != "") {
+		  graph.save(savecores + "." + graphlab::tostr(CURRENT_K) + ".",
+					 save_core_at_k(),
+					 false, /* no compression */ 
+					 false, /* do not save vertex */
+					 true, /* save edge */ 
+					 clopts.get_ncpus()); /* one file per machine */
+		}
+	  }
+	  const double runtime = timer.current_time();
+
+	  if(dc.procid() == 0) {
+		std::cout << graph.num_replicas() << "\t"
+			<< (double)graph.num_replicas()/graph.num_vertices() << "\t"
+			<< graph.get_edge_balance() << "\t"
+			<< graph.get_vertex_balance() << "\t"
+			<< ingress_time << "\t"
+			<< runtime << "\t"
+		   << engine.get_exec_time() << "\t"
+		   << engine.get_one_itr_time() << "\t"
+		   << engine.get_compute_balance() << "\t"
+			<< std::endl;
+	  }
+  
   }
   
   graphlab::mpi_tools::finalize();

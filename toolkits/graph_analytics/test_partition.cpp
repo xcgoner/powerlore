@@ -239,7 +239,7 @@ int main(int argc, char** argv) {
 
   int ntrials = 5;
   int trial_results1[20];
-  double trial_results2[20][7];
+  double trial_results2[20][8];
   uint32_t seed_set[20] = {1492133106, 680965948, 2040586311, 73972395, 942196338, 819390547, 1643934785, 1707678784, 401305863, 1051761031, 956889080, 1387946621, 1523349375, 1620677309, 592759340, 1459650384, 1406812251, 349206043, 255545576, 1070228652};
   for(int i = 0; i < ntrials; i++)
   {
@@ -295,7 +295,6 @@ int main(int argc, char** argv) {
     engine.signal_all();
     timer.start();
     engine.start();
-    const double runtime = timer.current_time();
   //  dc.cout() << "----------------------------------------------------------"
   //            << std::endl
   //            << "Final Runtime (seconds):   " << runtime
@@ -305,6 +304,7 @@ int main(int argc, char** argv) {
   //            << engine.num_updates() / runtime << std::endl;
 
     const double total_rank = graph.map_reduce_vertices<double>(map_rank);
+	const double runtime = timer.current_time();
   //  if(dc.procid() == 0)
   //    std::cout << "Total rank: " << total_rank << std::endl;
 
@@ -322,6 +322,7 @@ int main(int argc, char** argv) {
                     << graph.get_edge_balance() << "\t"
                     << graph.get_vertex_balance() << "\t"
                     << ingress_time << "\t"
+					<< runtime << "\t"
                     << engine.get_exec_time() << "\t"
                     << engine.get_one_itr_time() << "\t"
                     << engine.get_compute_balance() << "\t"
@@ -330,10 +331,11 @@ int main(int argc, char** argv) {
           trial_results2[i][0] = (double)graph.num_replicas()/graph.num_vertices();
           trial_results2[i][1] = graph.get_edge_balance();
           trial_results2[i][2] = graph.get_vertex_balance() ;
-          trial_results2[i][3] = ingress_time;
-          trial_results2[i][4] = engine.get_exec_time();
-          trial_results2[i][5] = engine.get_one_itr_time();
-          trial_results2[i][6] = engine.get_compute_balance();
+		  trial_results2[i][3] = runtime;
+          trial_results2[i][4] = ingress_time;
+          trial_results2[i][5] = engine.get_exec_time();
+          trial_results2[i][6] = engine.get_one_itr_time();
+          trial_results2[i][7] = engine.get_compute_balance();
 
           if(result_file != "") {
               std::cout << "saving the result to " << result_file << std::endl;
@@ -355,6 +357,7 @@ int main(int argc, char** argv) {
                   << graph.get_edge_balance() << "\t"
                   << graph.get_vertex_balance() << "\t"
                   << ingress_time << "\t"
+				  << runtime << "\t"
                   << engine.get_exec_time() << "\t"
                   << engine.get_one_itr_time() << "\t"
                   << engine.get_compute_balance() << "\t"
@@ -374,6 +377,7 @@ int main(int argc, char** argv) {
           << trial_results2[i][4] << "\t"
           << trial_results2[i][5] << "\t"
           << trial_results2[i][6] << "\t"
+		  << trial_results2[i][7] << "\t"
           << std::endl;
     }
   }

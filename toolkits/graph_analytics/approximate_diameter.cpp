@@ -313,7 +313,7 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-  int ntrials = 20;
+  int ntrials = 5;
   int trial_results1[20];
   double trial_results2[20][7];
   for(int i = 0; i < ntrials; i++) {
