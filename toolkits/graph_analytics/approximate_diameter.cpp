@@ -291,38 +291,63 @@ int main(int argc, char** argv) {
   clopts.add_positional("graph");
   clopts.attach_option("format", format,
                        "The graph file format");
+  size_t powerlaw = 0;
+  clopts.attach_option("powerlaw", powerlaw,
+                       "Generate a synthetic powerlaw degree graph. ");
+  double alpha = 2.1, beta = 2.2;
+  clopts.attach_option("alpha", alpha,
+                         "Power-law constant for indegree ");
+  clopts.attach_option("beta", beta,
+                         "Power-law constant for outdegree ");
   clopts.attach_option("tol", termination_criteria,
                        "The permissible change at convergence.");
   clopts.attach_option("use-sketch", use_sketch,
                        "If true, will use Flajolet & Martin bitmask, "
                        "which is more compact and faster.");
-  size_t ITERATIONS = 5;
+  size_t ITERATIONS = 0;
   clopts.attach_option("iterations", ITERATIONS,
       "If set, will force the use of the synchronous engine"
           "overriding any engine option set by the --engine parameter. "
           "Runs complete (non-dynamic) PageRank for a fixed "
           "number of iterations. Also overrides the iterations "
           "option in the engine");
+  std::string result_file;
+  clopts.attach_option("result_file", result_file,
+                       "If set, will save the test result to the"
+                       "specific file");
 
   if (!clopts.parse(argc, argv)){
     dc.cout() << "Error in parsing command line arguments." << std::endl;
     return EXIT_FAILURE;
   }
-  if (graph_dir == "") {
-    std::cout << "--graph is not optional\n";
-    return EXIT_FAILURE;
-  }
 
-  int ntrials = 5;
+  int ntrials = 20;
   int trial_results1[20];
-  double trial_results2[20][7];
+  double trial_results2[20][8];
+  uint32_t seed_set[20] = {1492133106, 680965948, 2040586311, 73972395, 942196338, 819390547, 1643934785, 1707678784, 401305863, 1051761031, 956889080, 1387946621, 1523349375, 1620677309, 592759340, 1459650384, 1406812251, 349206043, 255545576, 1070228652};
   for(int i = 0; i < ntrials; i++) {
     graphlab::timer timer;
+	
+	// random seed
+	// dc.cout() << seed_set[i] << std::endl;
+	clopts.get_graph_args().set_option("seed", seed_set[i]);
 
     //load graph
     graph_type graph(dc, clopts);
     dc.cout() << "Loading graph in format: " << format << std::endl;
-    graph.load_format(graph_dir, format);
+    if(powerlaw > 0) { // make a synthetic graph
+		dc.cout() << "Loading synthetic Powerlaw graph." << std::endl;
+		graph.load_synthetic_powerlaw(powerlaw, alpha, beta, 100000000);
+	  }
+	  else if (graph_dir.length() > 0) { // Load the graph from a file
+		dc.cout() << "Loading graph in format: "<< format << std::endl;
+		graph.load_format(graph_dir, format);
+	  }
+	  else {
+		dc.cout() << "graph or powerlaw option must be specified" << std::endl;
+		clopts.print_description();
+		return 0;
+	  }
     timer.start();
     graph.finalize();
     const double ingress_time = timer.current_time();
@@ -335,6 +360,7 @@ int main(int argc, char** argv) {
     time_t start, end;
     //initialize vertices
     time(&start);
+	timer.start();
     if (use_sketch == false)
       graph.transform_vertices(initialize_vertex);
     else
@@ -346,7 +372,6 @@ int main(int argc, char** argv) {
     //main iteration
     size_t previous_count = 0;
     size_t diameter = 0;
-    timer.start();
     for (size_t iter = 0; iter < ITERATIONS; ++iter) {
       engine.signal_all();
       engine.start();
@@ -376,52 +401,71 @@ int main(int argc, char** argv) {
     dc.cout() << "graph calculation time is " << (end - start) << " sec\n";
     dc.cout() << "The approximate diameter is " << diameter << "\n";
 
-    //  if(dc.procid() == 0) {
-    //    std::cout << graph.num_replicas() << "\t"
-    //        << (double)graph.num_replicas()/graph.num_vertices() << "\t"
-    //        << graph.get_edge_balance() << "\t"
-    //        << graph.get_vertex_balance() << "\t"
-    //        << ingress_time << "\t"
-    //        << runtime << "\t"
-    //        << engine.get_exec_time() << "\t"
-    //        << engine.get_one_itr_time() << "\t"
-    //        << engine.get_compute_balance() << "\t"
-    //        << std::endl;
-    //  }
     if(dc.procid() == 0) {
-      std::cout << graph.num_replicas() << "\t"
-          << (double) graph.num_replicas() / graph.num_vertices() << "\t"
-          << graph.get_edge_balance() << "\t"
-          << graph.get_vertex_balance() << "\t"
-          << ingress_time << "\t"
-          << engine.get_exec_time() << "\t"
-          << engine.get_one_itr_time() << "\t"
-          << engine.get_compute_balance() << "\t"
-          << std::endl;
-      trial_results1[i] = graph.num_replicas();
-      trial_results2[i][0] = (double) graph.num_replicas() / graph.num_vertices();
-      trial_results2[i][1] = graph.get_edge_balance();
-      trial_results2[i][2] = graph.get_vertex_balance();
-      trial_results2[i][3] = ingress_time;
-      trial_results2[i][4] = engine.get_exec_time();
-      trial_results2[i][5] = engine.get_one_itr_time();
-      trial_results2[i][6] = engine.get_compute_balance();
-    }
+          std::cout << graph.num_replicas() << "\t"
+                    << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+                    << graph.get_edge_balance() << "\t"
+                    << graph.get_vertex_balance() << "\t"
+                    << ingress_time << "\t"
+					<< runtime << "\t"
+                    << engine.get_exec_time() << "\t"
+                    << engine.get_one_itr_time() << "\t"
+                    << engine.get_compute_balance() << "\t"
+                    << std::endl;
+          trial_results1[i] = graph.num_replicas();
+          trial_results2[i][0] = (double)graph.num_replicas()/graph.num_vertices();
+          trial_results2[i][1] = graph.get_edge_balance();
+          trial_results2[i][2] = graph.get_vertex_balance() ;
+          trial_results2[i][3] = ingress_time;
+          trial_results2[i][4] = runtime;
+          trial_results2[i][5] = engine.get_exec_time();
+          trial_results2[i][6] = engine.get_one_itr_time();
+          trial_results2[i][7] = engine.get_compute_balance();
+
+          if(result_file != "") {
+              std::cout << "saving the result to " << result_file << std::endl;
+              std::ofstream fout(result_file.c_str(), std::ios::app);
+              if(powerlaw > 0) {
+                  fout << "powerlaw synthetic: " << powerlaw << "\t"
+                      << alpha << "\t" << beta << "\t" << dc.numprocs() << std::endl;
+              }
+              else {
+                  fout << "real-world graph: " << graph_dir << "\t"
+                      << graph.num_vertices() << "\t" << graph.num_edges()
+                      << "\t" << dc.numprocs() << std::endl;
+              }
+              std::string ingress_method = "";
+              clopts.get_graph_args().get_option("ingress", ingress_method);
+              fout << ingress_method << "\t";
+              fout << graph.num_replicas() << "\t"
+                  << (double)graph.num_replicas()/graph.num_vertices() << "\t"
+                  << graph.get_edge_balance() << "\t"
+                  << graph.get_vertex_balance() << "\t"
+                  << ingress_time << "\t"
+				  << runtime << "\t"
+                  << engine.get_exec_time() << "\t"
+                  << engine.get_one_itr_time() << "\t"
+                  << engine.get_compute_balance() << "\t"
+                  << std::endl;
+              fout.close();
+          }
+      }
   }
 
   if(dc.procid() == 0) {
-    for (int i = 0; i < ntrials; i++) {
-      std::cout << trial_results1[i] << "\t"
-          << trial_results2[i][0] << "\t"
-          << trial_results2[i][1] << "\t"
-          << trial_results2[i][2] << "\t"
-          << trial_results2[i][3] << "\t"
-          << trial_results2[i][4] << "\t"
-          << trial_results2[i][5] << "\t"
-          << trial_results2[i][6] << "\t"
-          << std::endl;
-    }
-  }
+		for (int i = 0; i < ntrials; i++) {
+		  std::cout << trial_results1[i] << "\t"
+			  << trial_results2[i][0] << "\t"
+			  << trial_results2[i][1] << "\t"
+			  << trial_results2[i][2] << "\t"
+			  << trial_results2[i][3] << "\t"
+			  << trial_results2[i][4] << "\t"
+			  << trial_results2[i][5] << "\t"
+			  << trial_results2[i][6] << "\t"
+			  << trial_results2[i][7] << "\t"
+			  << std::endl;
+		}
+	}
 
   graphlab::mpi_tools::finalize();
 

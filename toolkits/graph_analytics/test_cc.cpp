@@ -200,9 +200,9 @@ int main(int argc, char** argv) {
     clopts.get_engine_args().set_option("sched_allv", true);
   }
   
-  int ntrials = 5;
+  int ntrials = 20;
   int trial_results1[20];
-  double trial_results2[20][7];
+  double trial_results2[20][8];
   uint32_t seed_set[20] = {1492133106, 680965948, 2040586311, 73972395, 942196338, 819390547, 1643934785, 1707678784, 401305863, 1051761031, 956889080, 1387946621, 1523349375, 1620677309, 592759340, 1459650384, 1406812251, 349206043, 255545576, 1070228652};
   for(int i = 0; i < ntrials; i++)
   {
@@ -237,12 +237,15 @@ int main(int argc, char** argv) {
 
 	  dc.cout() << "#vertices: " << graph.num_vertices()
 				<< " #edges:" << graph.num_edges() << std::endl;
+				
+		ti.start();
+				
 	  graph.transform_vertices(initialize_vertex);
+	  
 
 	  //running the engine
 	  graphlab::synchronous_engine<label_propagation> engine(dc, graph, clopts);
 	  engine.signal_all();
-	  ti.start();
 	  engine.start();
 	  const double runtime = ti.current_time();
 
@@ -260,6 +263,7 @@ int main(int argc, char** argv) {
                     << graph.get_edge_balance() << "\t"
                     << graph.get_vertex_balance() << "\t"
                     << ingress_time << "\t"
+					<< runtime << "\t"
                     << engine.get_exec_time() << "\t"
                     << engine.get_one_itr_time() << "\t"
                     << engine.get_compute_balance() << "\t"
@@ -269,9 +273,10 @@ int main(int argc, char** argv) {
           trial_results2[i][1] = graph.get_edge_balance();
           trial_results2[i][2] = graph.get_vertex_balance() ;
           trial_results2[i][3] = ingress_time;
-          trial_results2[i][4] = engine.get_exec_time();
-          trial_results2[i][5] = engine.get_one_itr_time();
-          trial_results2[i][6] = engine.get_compute_balance();
+          trial_results2[i][4] = runtime;
+          trial_results2[i][5] = engine.get_exec_time();
+          trial_results2[i][6] = engine.get_one_itr_time();
+          trial_results2[i][7] = engine.get_compute_balance();
 
           if(result_file != "") {
               std::cout << "saving the result to " << result_file << std::endl;
@@ -293,6 +298,7 @@ int main(int argc, char** argv) {
                   << graph.get_edge_balance() << "\t"
                   << graph.get_vertex_balance() << "\t"
                   << ingress_time << "\t"
+				  << runtime << "\t"
                   << engine.get_exec_time() << "\t"
                   << engine.get_one_itr_time() << "\t"
                   << engine.get_compute_balance() << "\t"
@@ -313,6 +319,7 @@ int main(int argc, char** argv) {
 			  << trial_results2[i][4] << "\t"
 			  << trial_results2[i][5] << "\t"
 			  << trial_results2[i][6] << "\t"
+			  << trial_results2[i][7] << "\t"
 			  << std::endl;
 		}
 	}
